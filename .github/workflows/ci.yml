@@ -1,0 +1,30 @@
+# Tests and an unsigned Mac build for every push to main and every pull request.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: xcodebuild -version
+      - name: JavaScript tests
+        run: npm test
+      - name: NotebookCore tests
+        run: npm run test:native
+      - name: Build the Mac app
+        run: npm run build:macos

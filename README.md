@@ -105,13 +105,17 @@ npm run test:ios             # iPhone UI tests in the simulator
 
 ### Release a Mac build
 
-`npm run release:macos` makes a Release build, signs it with your Developer ID,
-notarizes it and writes `build/release/Notebook-<version>.dmg`. You need a
-Developer ID Application certificate and, once, stored notarization credentials:
+Releases are built on GitHub. Push a version tag and the
+[Release workflow](.github/workflows/release.yml) builds the app, signs it with
+a Developer ID, notarizes it and publishes the `.dmg` on the Releases page:
 
 ```sh
-xcrun notarytool store-credentials notebook --apple-id you@example.com --team-id YOURTEAMID
+git tag v0.4.0 && git push origin v0.4.0
 ```
+
+The tag sets the app's version. The workflow's comments list the repository
+secrets it needs. To build the same signed `.dmg` locally, run
+`npm run release:macos` (see the script for the notarization setup).
 
 ## Code
 
