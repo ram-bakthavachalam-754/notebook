@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Kids Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: the kid's Mac (big friendly sidebar) and iPhone (tab bar) side by side, sharing one notebook.
+   Only the apps a parent turned on appear; no rules, topics or versions are ever shown to the child.
+   A reviewer strip above the devices switches between two example kids. */
+:root {
+  --desk: #ece9f2; --win: #ffffff; --line: #e6e2ea;
+  --text: #22202a; --text2: #6c6875; --text3: #a6a2ad;
+  --kid: #f2683c; --care: #7a5af5; --green: #1f9d47;
+  --kid-surface: #fffaf6; --kid-bubble: #f3efe9; --kid-card: #ffffff; --side: #fbf3ec; --paper-line: #d9e4f5;
+  --shadow: 0 30px 60px -20px rgba(40,25,70,.28), 0 0 0 .5px rgba(0,0,0,.12); --bezel: #1b1b1f;
+  --font-kid: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-hand: "Comic Sans MS", "Chalkboard SE", ui-rounded, "Nunito", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #121016; --win: #1f1d22; --line: #36333b; --text: #f4f2f6; --text2: #aaa6b1; --text3: #6f6b76; --care: #a48bff; --green: #42c96b;
+  --kid-surface: #1d1a18; --kid-bubble: #2c2825; --kid-card: #26221f; --side: #231f1c; --paper-line: #3a4458;
+  --shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050506; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #121016; --win: #1f1d22; --line: #36333b; --text: #f4f2f6; --text2: #aaa6b1; --text3: #6f6b76; --care: #a48bff; --green: #42c96b;
+  --kid-surface: #1d1a18; --kid-bubble: #2c2825; --kid-card: #26221f; --side: #231f1c; --paper-line: #3a4458;
+  --shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050506; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text); font-family: var(--font-ui); font-size: 13px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 48px; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--kid) 40%, transparent); outline-offset: 2px; }
+
+.top { max-width: 1280px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.top h1 { margin: 0; font-family: var(--font-kid); font-weight: 800; font-size: 26px; letter-spacing: -.01em; }
+.top p { margin: 4px 0 0; color: var(--text2); max-width: 72ch; font-size: 13.5px; }
+.links { display: flex; gap: 4px; flex-wrap: wrap; font-size: 12.5px; }
+.links a { color: var(--text2); text-decoration: none; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--win); }
+.links a[aria-current="page"] { color: var(--win); background: var(--text); border-color: var(--text); }
+.reviewer { max-width: 1280px; margin: 0 auto 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 12px; background: color-mix(in srgb, var(--win) 60%, transparent); }
+.reviewer b { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+.reviewer .who { display: flex; gap: 6px; }
+.reviewer .who button { border: 1px solid var(--line); background: var(--win); border-radius: 99px; padding: 4px 12px 4px 4px; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.reviewer .who button[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.reviewer .who i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-style: normal; font-size: 11px; font-weight: 800; }
+.reviewer p { margin: 0; color: var(--text2); flex: 1; min-width: 220px; font-size: 12.5px; }
+.stage { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 352px; gap: 30px; align-items: start; }
+@media (max-width: 1040px) { .stage { grid-template-columns: minmax(0,1fr); } .phone-wrap { justify-self: center; } }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin: 0 0 9px 4px; }
+
+/* ---------- shared kid UI ---------- */
+.kid { font-family: var(--font-kid); background: var(--kid-surface); }
+.head { display: flex; align-items: center; gap: 10px; padding: 12px 18px 8px; flex: 0 0 auto; }
+.head .avatar { width: 38px; height: 38px; font-size: 17px; }
+.head h4 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.1; }
+.head .grow { flex: 1; min-width: 0; }
+.head small { color: var(--text2); font-size: 12.5px; font-weight: 700; }
+.avatar { border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; flex: 0 0 auto; font-style: normal; background: var(--kid); }
+.round { border: 0; background: var(--kid-bubble); width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--text2); flex: 0 0 auto; }
+.round svg { width: 18px; height: 18px; fill: currentColor; }
+.round.add { background: var(--kid); color: #fff; }
+.view { flex: 1; overflow-y: auto; padding: 4px 18px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.kcard { background: var(--kid-card); border-radius: 18px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 4px; }
+button.kcard { border: 0; text-align: left; font: inherit; width: 100%; }
+button.kcard:hover { box-shadow: 0 0 0 2px var(--kid); }
+.kcard b { font-size: 15.5px; }
+.kcard p { margin: 0; color: var(--text2); font-size: 13.5px; }
+.kcard .meta { font-size: 11.5px; font-weight: 700; color: var(--text3); }
+.ktag { align-self: flex-start; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--kid) 15%, transparent); color: var(--kid); }
+.templates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tpl { border: 0; border-radius: 16px; padding: 12px; text-align: left; font: inherit; font-weight: 800; font-size: 14px; color: #fff; display: flex; flex-direction: column; gap: 2px; }
+.tpl small { font-weight: 600; opacity: .92; font-size: 11.5px; }
+.kbtn { border: 0; border-radius: 99px; padding: 9px 16px; font: inherit; font-weight: 800; font-size: 14px; background: var(--kid); color: #fff; }
+.kbtn.soft { background: var(--kid-bubble); color: var(--text); }
+.back { border: 0; background: none; color: var(--kid); font: inherit; font-weight: 800; font-size: 14px; padding: 0; align-self: flex-start; }
+.note-page { background: var(--kid-card); border-radius: 18px; padding: 14px; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 8px; }
+.note-page input { border: 0; background: none; outline: none; font: inherit; font-size: 20px; font-weight: 800; padding: 0; }
+.note-page textarea { border: 0; background: none; outline: none; font: inherit; font-size: 15px; line-height: 1.5; resize: none; min-height: 150px; }
+.photo { border-radius: 12px; aspect-ratio: 4 / 3; max-width: 100%; background: repeating-linear-gradient(0deg, transparent 0 13px, var(--paper-line) 13px 14px), #fdfdf8; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.photo::after { content: "3/8 + 2/8 =      5/6 − 1/6 ="; position: absolute; left: 12px; top: 18px; right: 8px; font-family: var(--font-hand); font-size: 13px; color: #36507a; white-space: pre-wrap; line-height: 28px; }
+.photo.small { width: 56px; height: 56px; aspect-ratio: auto; border-radius: 10px; }
+.photo.small::after { font-size: 6px; line-height: 9px; top: 6px; left: 5px; }
+.photo.moon { background: radial-gradient(circle at 30% 40%, rgba(0,0,0,.18) 0 7%, transparent 8%), radial-gradient(circle at 58% 62%, rgba(0,0,0,.14) 0 10%, transparent 11%), radial-gradient(circle at 64% 32%, rgba(0,0,0,.12) 0 5%, transparent 6%), radial-gradient(circle at 50% 50%, #e9e6dc 0 34%, transparent 35%), radial-gradient(circle at 50% 50%, #1b2340, #070a16); border-color: #10142a; }
+.photo.moon::after { content: none; }
+.next { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 92%; }
+.next button { border: 0; border-radius: 99px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 13px; background: color-mix(in srgb, var(--kid) 13%, transparent); color: var(--kid); text-align: left; }
+.next button:hover { background: color-mix(in srgb, var(--kid) 22%, transparent); }
+.wonder { background: linear-gradient(135deg, #1d2a5c, #3b2a6b); color: #fff; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.wonder small { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+.wonder b { font-size: 18px; line-height: 1.25; }
+.wonder button { align-self: flex-start; border: 0; border-radius: 99px; padding: 7px 14px; font: inherit; font-weight: 800; font-size: 13px; background: #fff; color: #2a2160; }
+.sug .cat { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.prompt { background: color-mix(in srgb, var(--kid) 13%, var(--kid-card)); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.prompt h5 { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.2; text-wrap: balance; }
+.moods { display: flex; flex-wrap: wrap; gap: 6px; }
+.moods button { border: 0; border-radius: 99px; padding: 5px 11px; font: inherit; font-weight: 800; font-size: 12.5px; background: var(--kid-card); color: var(--text2); box-shadow: 0 0 0 1px var(--line); }
+.moods button[aria-pressed="true"] { background: var(--kid); color: #fff; box-shadow: none; }
+.prompt textarea { width: 100%; border: 0; border-radius: 14px; padding: 10px 12px; font: inherit; font-size: 15px; background: var(--kid-card); resize: none; min-height: 76px; outline: none; }
+.prompt textarea:focus { box-shadow: 0 0 0 2px var(--kid); }
+.private { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text2); }
+.private svg { width: 12px; height: 12px; fill: currentColor; }
+.goal .bar { height: 12px; border-radius: 99px; background: var(--kid-bubble); overflow: hidden; margin: 6px 0 4px; }
+.goal .bar i { display: block; height: 100%; border-radius: 99px; background: var(--kid); transition: width .3s; }
+.goal .amt { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.goal .acts { display: flex; gap: 6px; margin-top: 6px; }
+.goal .acts button { border: 0; border-radius: 99px; padding: 5px 12px; font: inherit; font-weight: 800; font-size: 13px; background: color-mix(in srgb, var(--kid) 14%, transparent); color: var(--kid); }
+.goal.done .bar i { background: var(--green); }
+.allow-card { background: var(--kid); color: #fff; border-radius: 20px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+.allow-card b { font-size: 26px; font-variant-numeric: tabular-nums; }
+.allow-card span { font-weight: 700; font-size: 13.5px; line-height: 1.3; }
+.acct { display: flex; justify-content: space-between; align-items: baseline; font-variant-numeric: tabular-nums; }
+.acct b { font-size: 18px; }
+.welcome h5 { font-size: 24px; line-height: 1.15; margin: 4px 0 6px; font-weight: 800; text-wrap: balance; }
+.welcome p { margin: 0 0 12px; color: var(--text2); font-size: 14px; }
+.sugs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sug { border: 0; text-align: left; background: var(--kid-card); border-radius: 16px; padding: 10px 12px; font: inherit; font-size: 13.5px; font-weight: 700; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 4px; }
+.sug small { font-weight: 500; color: var(--text2); font-size: 12px; }
+.sug:hover { box-shadow: 0 0 0 2px var(--kid); }
+.bub { max-width: 86%; padding: 10px 14px; font-size: 15px; line-height: 1.4; border-radius: 20px; animation: pop .22s ease-out; display: flex; flex-direction: column; gap: 8px; }
+.bub.me { align-self: flex-end; background: var(--kid); color: #fff; border-bottom-right-radius: 6px; }
+.bub.ai { align-self: flex-start; background: var(--kid-bubble); border-bottom-left-radius: 6px; }
+.bub.ai.soft { background: color-mix(in srgb, var(--care) 12%, var(--kid-surface)); }
+.bub .files { display: flex; gap: 6px; flex-wrap: wrap; }
+.bub .photo { width: 150px; }
+.filechip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.22); }
+.filechip svg { width: 14px; height: 14px; fill: currentColor; }
+.typing { align-self: flex-start; background: var(--kid-bubble); border-radius: 20px; padding: 12px 16px; display: flex; gap: 5px; }
+.typing i { width: 7px; height: 7px; background: var(--text3); border-radius: 50%; animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .3; transform: translateY(-2px); } }
+@keyframes pop { from { transform: scale(.96); opacity: .4; } }
+@keyframes rise { from { transform: translateY(24px); opacity: 0; } }
+.composer { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); background: var(--kid-surface); position: relative; flex: 0 0 auto; }
+.composer form { display: flex; gap: 8px; align-items: center; }
+.composer input { flex: 1; min-width: 0; border: 0; background: var(--kid-bubble); border-radius: 99px; padding: 11px 16px; font-size: 15px; font-family: var(--font-kid); outline: none; }
+.composer input:focus { box-shadow: 0 0 0 2px var(--kid); }
+.send { border: 0; width: 42px; height: 42px; border-radius: 50%; background: var(--kid); color: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+.send svg { width: 18px; height: 18px; fill: currentColor; }
+.send:disabled { opacity: .4; }
+.clip { border: 0; width: 38px; height: 38px; border-radius: 50%; background: var(--kid-bubble); color: var(--text2); display: grid; place-items: center; flex: 0 0 auto; }
+.clip svg { width: 19px; height: 19px; fill: currentColor; }
+.pending { display: flex; gap: 8px; }
+.pchip { position: relative; }
+.pchip .x { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 20px; padding: 0; }
+.pfile { height: 56px; border-radius: 10px; background: var(--kid-card); box-shadow: 0 0 0 1px var(--line); display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 800; max-width: 150px; }
+.pfile svg { width: 16px; height: 16px; fill: var(--kid); flex: 0 0 auto; }
+.pfile span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu { position: absolute; bottom: 64px; left: 12px; background: var(--kid-card); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18), 0 0 0 1px var(--line); padding: 6px; display: flex; flex-direction: column; min-width: 190px; z-index: 3; animation: rise .18s ease-out; }
+.menu button { border: 0; background: none; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font: inherit; font-weight: 700; font-size: 14px; text-align: left; }
+.menu button:hover { background: var(--kid-bubble); }
+.menu svg { width: 18px; height: 18px; fill: var(--kid); }
+.left { font-size: 11.5px; color: var(--text2); text-align: center; font-weight: 700; }
+.ksheet { position: absolute; inset: auto 0 0 0; background: var(--win); border-radius: 26px 26px 0 0; padding: 18px 18px 26px; box-shadow: 0 -10px 40px rgba(0,0,0,.2); z-index: 4; animation: rise .25s ease-out; }
+.ksheet h5 { margin: 0 0 4px; font-size: 19px; font-weight: 800; }
+.ksheet p { margin: 0 0 14px; color: var(--text2); font-size: 14px; }
+.ksheet .kbtn { width: 100%; }
+.lock { position: absolute; inset: 0; background: var(--kid-surface); z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 30px; }
+.lock .face { width: 74px; height: 74px; border-radius: 22px; border: 3px solid var(--kid); display: grid; place-items: center; color: var(--kid); }
+.lock .face svg { width: 40px; height: 40px; fill: currentColor; }
+.lock h5 { margin: 0; font-size: 20px; font-weight: 800; }
+.empty { color: var(--text2); text-align: center; padding: 40px 10px; font-size: 14px; }
+
+/* ---------- Mac ---------- */
+.mac-wrap { min-width: 0; }
+.mac { border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; height: 680px; position: relative; min-width: 0; }
+@media (max-width: 720px) { .mac { height: auto; min-height: 620px; } }
+.tb { height: 46px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--side); border-bottom: 1px solid var(--line); }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.tb span { font-weight: 800; font-size: 14px; color: var(--text2); }
+.mbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0,1fr); }
+@media (max-width: 720px) { .mbody { grid-template-columns: minmax(0,1fr); } }
+.side { background: var(--side); border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 720px) { .side { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; padding: 10px; } .side .me { display: none; } }
+.side .me { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; font-size: 18px; font-weight: 800; }
+.side .me .avatar { width: 36px; height: 36px; font-size: 16px; }
+.sideb { border: 0; background: none; display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 14px; font: inherit; font-weight: 800; font-size: 15px; color: var(--text2); text-align: left; flex: 0 0 auto; }
+.sideb i { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: #fff; flex: 0 0 auto; }
+.sideb i svg { width: 19px; height: 19px; fill: currentColor; }
+.sideb:hover { background: var(--kid-bubble); }
+.sideb[aria-current="true"] { background: var(--kid-card); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+.mpane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.mpane .view { padding: 6px 28px 18px; max-width: 760px; width: 100%; }
+.mpane .head { padding: 18px 28px 8px; }
+.mpane .composer { padding: 10px 28px 12px; }
+.mpane .templates { grid-template-columns: repeat(4, minmax(0,1fr)); }
+@media (max-width: 620px) { .mpane .templates { grid-template-columns: 1fr 1fr; } .mpane .view, .mpane .head, .mpane .composer { padding-left: 14px; padding-right: 14px; } }
+.mpane .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+
+/* ---------- Phone ---------- */
+.phone-wrap { width: min(352px, 100%); }
+.phone { background: var(--bezel); border-radius: 50px; padding: 11px; box-shadow: var(--shadow); }
+.screen { border-radius: 40px; height: 720px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.island { width: 100px; height: 29px; background: #000; border-radius: 20px; margin: 10px auto 0; flex: 0 0 auto; }
+.sbar { position: absolute; top: 15px; left: 30px; right: 28px; display: flex; justify-content: space-between; font-family: var(--font-ui); font-weight: 600; font-size: 13px; pointer-events: none; }
+.screen .view { padding: 4px 16px 14px; }
+.screen .head { padding: 10px 16px 8px; }
+.tabbar { display: flex; border-top: 1px solid var(--line); background: var(--kid-surface); padding: 6px 6px 18px; flex: 0 0 auto; }
+.tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font: inherit; font-size: 11px; font-weight: 800; color: var(--text3); padding: 4px 0; }
+.tabbar button svg { width: 22px; height: 22px; fill: currentColor; }
+.tabbar button[aria-current="true"] { color: var(--kid); }
+.screen .ksheet { border-radius: 26px 26px 40px 40px; }
+.foot { max-width: 1280px; margin: 18px auto 0; color: var(--text3); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Notebook for kids</h1>
+    <p>What a child sees on their own Mac and iPhone. It's their own private notebook, with only the apps a parent turned on. Ask is for curiosity: space, science, history, math and nature. It doesn't do homework. The rules behind it stay out of sight: a blocked question just gets a friendly reply.</p>
+  </div>
+  <nav class="links" aria-label="Prototypes"><a href="app-prototype.html">Grown-up app</a><a href="kids-prototype.html" aria-current="page">Kids app</a><a href="prototype.html">Family controls</a><a href="sharing-prototype.html">Sharing</a><a href="design.html">Design doc</a></nav>
+</header>
+<div class="reviewer" role="group" aria-label="Preview as">
+  <b>Preview as</b>
+  <div class="who" id="who"></div>
+  <p id="who-note"></p>
+</div>
+<div class="stage">
+  <div class="mac-wrap"><p class="label" id="mac-label">Kid's Mac</p><div class="mac kid" id="mac"></div></div>
+  <div class="phone-wrap"><p class="label" id="phone-label">Kid's iPhone</p><div class="phone"><div class="screen kid" id="screen"></div></div></div>
+</div>
+<p class="foot">Example names and data. Agent replies are scripted with simple keyword checks so the prototype runs offline. The reviewer strip above is for you, not part of the kid's app.</p>
+
+<script>
+(function () {
+'use strict';
+const I = {
+  lock: '<svg viewBox="0 0 12 12"><path d="M3.5 5V3.6a2.5 2.5 0 0 1 5 0V5h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 0h3V3.6a1.5 1.5 0 0 0-3 0z"/></svg>',
+  gear: '<svg viewBox="0 0 20 20"><path d="M10 6.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM8.6 1h2.8l.5 2.3 1.6.7 2-1.3 2 2-1.3 2 .7 1.6 2.3.5v2.8l-2.3.5-.7 1.6 1.3 2-2 2-2-1.3-1.6.7-.5 2.3H8.6l-.5-2.3-1.6-.7-2 1.3-2-2 1.3-2-.7-1.6L.8 11.4V8.6l2.3-.5.7-1.6-1.3-2 2-2 2 1.3 1.6-.7z"/></svg>',
+  plus: '<svg viewBox="0 0 20 20"><path d="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z"/></svg>',
+  send: '<svg viewBox="0 0 20 20"><path d="M10 2l7 7-1.4 1.4L11 5.8V18H9V5.8L4.4 10.4 3 9z"/></svg>',
+  clip: '<svg viewBox="0 0 20 20"><path d="M13.5 4.5a2.5 2.5 0 0 0-3.5 0L4.6 9.9a4 4 0 0 0 5.6 5.7l5.2-5.2 1.1 1.1-5.2 5.2a5.5 5.5 0 0 1-7.8-7.8L8.9 3.4a4 4 0 0 1 5.7 5.7l-5.4 5.4a2.5 2.5 0 0 1-3.5-3.5L10.8 6l1.1 1-5.1 5.1a1 1 0 0 0 1.4 1.4l5.3-5.4a2.5 2.5 0 0 0 0-3.6z"/></svg>',
+  camera: '<svg viewBox="0 0 20 20"><path d="M7 3h6l1.5 2H17a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>',
+  photos: '<svg viewBox="0 0 20 20"><path d="M3 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 9.5V14h12v-2l-3-3-4 4-2-2zM7 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+  file: '<svg viewBox="0 0 20 20"><path d="M5 2h7l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.5V7h3.5zM7 10v1.5h6V10zm0 3v1.5h6V13z"/></svg>',
+  face: '<svg viewBox="0 0 40 40"><path d="M6 4h6v3H7v5H4V6a2 2 0 0 1 2-2zm22 0h6a2 2 0 0 1 2 2v6h-3V7h-5zM4 28h3v5h5v3H6a2 2 0 0 1-2-2zm29 0h3v6a2 2 0 0 1-2 2h-6v-3h5zM14 14h3v4h-3zm9 0h3v4h-3zm-4 1h2v7h-3v-2h1zm-5 11h2a4.5 4.5 0 0 0 7 0h2a6.5 6.5 0 0 1-11 0z"/></svg>',
+  tab: {
+    notes: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 7v2h8v-2zm0 4v2h8v-2zm0-8v2h5V6z"/></svg>',
+    journal: '<svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5zm3 4v2h7V7zm0 4v2h7v-2zM3 6h1v2H3zm0 5h1v2H3zm0 5h1v2H3z"/></svg>',
+    money: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm1 3h-2v1.1c-1.7.4-2.8 1.5-2.8 3 0 1.9 1.6 2.6 3.4 3.1 1.4.4 2 .7 2 1.4 0 .6-.6 1.1-1.6 1.1-1.1 0-1.9-.5-2.1-1.4l-1.9.5c.3 1.4 1.4 2.4 3 2.7V19h2v-1.1c1.8-.3 2.9-1.5 2.9-3 0-2-1.6-2.7-3.4-3.2-1.4-.4-2-.7-2-1.3 0-.5.6-1 1.5-1 .9 0 1.6.4 1.8 1.2l1.9-.5c-.3-1.2-1.3-2.1-2.7-2.4z"/></svg>',
+    ask: '<svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zm6 12l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></svg>'
+  }
+};
+const APPS = [['notes', 'Notes', '#e98b1f'], ['journal', 'Journal', '#ec5c8f'], ['money', 'Money', '#2fae5f'], ['ask', 'Ask', '#9b5cf0']];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const money = n => '$' + n.toFixed(n % 1 ? 2 : 0);
+const TEMPLATES = [['I wonder', 'A question to explore', '#0a84ff', 'I wonder: \nMy guess: \nWhat I found out: '], ['Reading log', 'Book, pages, favorite part', '#ec407a', 'Book: \nPages read: \nFavorite part: '], ['Big idea', 'Something cool to remember', '#ff9f0a', 'My idea: \nWhy it’s cool: '], ['Checklist', 'Things to do', '#34c759', '☐ \n☐ \n☐ ']];
+const PROMPTS = ['What made you smile today?', 'What’s something new you learned?', 'Who was kind to you today?'];
+const MOODS = ['Great', 'Good', 'Okay', 'Low', 'Hard day'];
+const SUGS = [['How far away is the Moon?', 'Space', '#4a5bd4'], ['Why do volcanoes erupt?', 'Earth', '#e0562f'], ['Who built the pyramids?', 'History', '#b8862b'], ['Why is zero so important?', 'Math', '#2f8fd8'], ['How do bees make honey?', 'Nature', '#2fa15a'], ['What’s inside a black hole?', 'Space', '#4a5bd4']];
+const WONDERS = ['Why do cats purr?', 'How many stars are there?', 'Why do we have leap years?', 'How do airplanes stay up?', 'What did dinosaurs sound like?', 'Is there a biggest number?'];
+/* Scripted answers: [for younger kids, extra detail for older kids, follow-up questions]. */
+const ANSWERS = {
+  'moon': ['The Moon is about 384,000 kilometers away. If you could drive a car there without stopping, it would take about six months! Light makes the trip in just over one second.', ' The distance changes a little because the Moon’s path is an oval, and it drifts about 3.8 cm farther from Earth every year.', ['Why does the Moon change shape?', 'Could people live on the Moon?']],
+  'volcano': ['Deep underground, rock gets so hot it melts into magma. Magma is lighter than the rock around it, so it rises. Gas bubbles inside push like a shaken soda bottle, and when the pressure gets too strong, it bursts out.', ' Most volcanoes sit where Earth’s giant plates pull apart or crash together.', ['What is the biggest volcano?', 'Are there volcanoes on other planets?']],
+  'pyramid': ['Ancient Egyptians built the Great Pyramid about 4,500 years ago for a king named Khufu. Thousands of paid workers lived in a town nearby. They moved huge stone blocks with sleds, ramps and lots of teamwork.', ' It was the tallest building on Earth for almost 4,000 years.', ['How long did it take to build?', 'What was inside the pyramids?']],
+  'zero': ['Zero lets us write big numbers easily. Without it, how would you tell 5 from 50 or 500? Mathematicians in India started treating zero as a real number about 1,500 years ago, and the idea spread around the world.', ' Zero also made algebra and computers possible: every computer runs on just 0s and 1s.', ['Who invented numbers?', 'What is infinity?']],
+  'bees': ['Bees sip nectar from flowers and carry it home in a special honey stomach. In the hive they pass it from bee to bee, then fan it with their wings until most of the water dries out. What’s left is thick, sweet honey!', ' One bee makes only about a twelfth of a teaspoon of honey in its whole life.', ['How do bees talk to each other?', 'Why do bees sting?']],
+  'black hole': ['A black hole is a place where gravity pulls so hard that nothing can escape, not even light. Nobody can see inside, so scientists study how it pulls on the stars and gas around it.', ' The edge you can’t come back from is called the event horizon. In 2019 scientists took the first picture of a black hole’s shadow.', ['How are black holes made?', 'Is there a black hole near Earth?']],
+  'purr': ['Cats purr by quickly squeezing muscles in their voice box, about 25 times a second, while they breathe in and out.', ' Purring can mean a cat is happy, but cats also purr to calm themselves when they’re hurt or nervous.', ['Why do cats have whiskers?', 'Do big cats like lions purr?']],
+  'stars': ['On a dark night you can see about 2,500 stars with just your eyes. Our galaxy, the Milky Way, has a few hundred billion, and there are billions of galaxies!', ' That means there are more stars in the universe than grains of sand on all of Earth’s beaches.', ['What is a star made of?', 'Which star is closest to us?']],
+  'leap': ['Earth takes about 365 and a quarter days to go around the Sun. Those quarter days add up, so every four years we add February 29 to catch up.', ' There’s a twist: years ending in 00 skip the leap day unless they divide by 400, so 2000 had one but 1900 didn’t.', ['Why are there 7 days in a week?', 'Who made the calendar?']],
+  'airplane': ['A wing is shaped and tilted so it pushes air down as it moves. Pushing air down pushes the plane up! The engines keep it going fast enough for that lift to beat gravity.', ' That upward force is called lift, and big jets need to reach about 250 km/h before they can take off.', ['How do helicopters fly?', 'Why do planes leave white lines?']],
+  'dinosaur': ['Scientists think many dinosaurs didn’t roar like in movies. Some probably made low booming sounds with their mouths closed, like crocodiles and some birds do today.', ' Parasaurolophus had a long hollow crest that may have worked like a trumpet.', ['Are birds really dinosaurs?', 'What was the biggest dinosaur?']],
+  'biggest number': ['No! However big a number is, you can always add 1 to it. That never-ending idea is called infinity.', ' Some infinities are even bigger than others, which a mathematician named Georg Cantor proved about 150 years ago.', ['What is a googol?', 'How high can you count in a lifetime?']],
+  'moon shape': ['The Moon doesn’t really change shape. The Sun always lights up half of it. As the Moon travels around Earth, we see different amounts of that bright half, from a thin sliver to a full circle.', ' One trip through all the phases takes about 29.5 days, which is where the idea of a “month” comes from.', ['What is a lunar eclipse?', 'Why do we always see the same side?']],
+  'moon photo': ['That’s the Moon! The dark patches are called maria, which means “seas”, but they’re really giant plains of old lava. The round dents are craters made by space rocks crashing into it.', ' The Moon has no air or rain, so footprints astronauts left in 1969 are probably still there.', ['Why does the Moon have craters?', 'Has anyone walked on the Moon?']]
+};
+const ANSWER_KEYS = [['moon shape', ['change shape', 'phases']], ['moon', ['moon']], ['volcano', ['volcano']], ['pyramid', ['pyramid']], ['zero', ['zero']], ['bees', ['bee', 'honey']], ['black hole', ['black hole']], ['purr', ['purr']], ['stars', ['how many stars']], ['leap', ['leap year']], ['airplane', ['airplane', 'plane stay']], ['dinosaur', ['dinosaur']], ['biggest number', ['biggest number']]];
+
+/* What a parent published. The child's app reads it but never displays it. */
+const KIDS = {
+  sam: { name: 'Sam', age: 9, color: '#f2683c', parent: 'Dad',
+    s: { apps: { notes: { photos: true, templates: true }, journal: { reminder: '7:30 PM' }, money: { mode: 'savings', allowance: 5 }, ask: {} }, attach: { camera: true, library: true, files: false }, style: 'wonder', daily: 40, lock: false,
+      block: ['scary','substances','relationships','violence','gambling','personal'], careful: ['health','news'], rules: [['cheat','hack','free robux','unlimited','glitch']], refusal: "That's a good one to ask Dad about. Want help with something else?" },
+    notes: [{ t: 'Space facts', b: 'Jupiter has 95 moons!\nSaturn could float in a giant bathtub.', tag: 'Big idea', photo: false }, { t: 'Things I wonder', b: 'Why do cats purr?\nHow deep is the ocean?', tag: 'I wonder', photo: false }],
+    journal: [{ d: 'Sat, Oct 18', mood: 'Great', b: 'Went to the park and played soccer. I scored two goals!' }],
+    goals: [{ name: 'LEGO space shuttle', target: 60, saved: 34 }], accounts: [], used: 12 },
+  alex: { name: 'Alex', age: 13, color: '#11a08c', parent: 'Dad',
+    s: { apps: { notes: { photos: true, templates: false }, money: { mode: 'full', allowance: 10 }, ask: {} }, attach: { camera: true, library: true, files: true }, style: 'think', daily: 60, lock: true,
+      block: ['violence','gambling','personal'], careful: ['health','relationships','scary','substances','news'], rules: [['celebrity','gossip','influencer']], refusal: "I can't help with that one. Talk to Dad if you're curious." },
+    notes: [{ t: 'Rome questions', b: 'Why did Rome fall?\nHow did aqueducts carry water uphill?', tag: 'I wonder', photo: false }, { t: 'Reading log', b: 'The Hobbit, chapter 6. Bilbo finds the ring.', tag: 'Reading', photo: false }],
+    journal: [], goals: [{ name: 'New headphones', target: 80, saved: 52 }, { name: 'Summer camp fund', target: 200, saved: 65 }], accounts: [['Checking', 120], ['Savings', 340]], used: 9 }
+};
+for (const k of Object.values(KIDS)) Object.assign(k, { chat: [], pending: [], typing: false, mood: 'Good', wonder: k.age, reveal: null, ui: { mac: { tab: null, open: null, noteMenu: false, menu: false, sheet: false, unlocked: false }, phone: { tab: 'ask', open: null, noteMenu: false, menu: false, sheet: false, unlocked: false } } });
+let who = 'sam';
+
+/* ---------- simulated checks (same idea as the family prototype) ---------- */
+const TOPIC_KW = {
+  learning: ['math','number','zero','history','pyramid','rome','language','infinity','calendar','leap year'],
+  science: ['sky','planet','space','moon','star','black hole','animal','bee','cat','dinosaur','volcano','science','airplane','why is','how does'],
+  games: ['game','minecraft','roblox','fortnite','robux','lego'], feelings: ['sad','worried','friend','lonely','bully','angry','nervous'],
+  health: ['body','sick','puberty','doctor','medicine','sleep'], relationships: ['crush','dating','boyfriend','girlfriend','kiss'],
+  scary: ['scary','scariest','horror','ghost','creepy','zombie'], violence: ['gun','weapon','fight','kill','war','bomb'],
+  substances: ['vape','vaping','alcohol','beer','drunk','drug','weed','smoke','smoking'], news: ['election','president','politics','news'],
+  gambling: ['gamble','gambling','bet','casino','lottery','loot box'], personal: ['my address','password','phone number','where i live']
+};
+const CARE = ['hurt myself','kill myself','suicide','self harm','want to die','end my life'], ALWAYS = ['sex','porn','nude','naked'];
+const HOMEWORK = ['homework','worksheet','answer key','write my essay','essay for me','solve this','do my','assignment','test answers'];
+function has(q, k) {
+  if (!/^[a-z]/.test(k) || !/[a-z]$/.test(k)) return q.includes(k);
+  return new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(s|es|ing)?\\b').test(q);
+}
+function decide(q, s) {
+  if (CARE.some(k => has(q, k))) return { d: 'care' };
+  if (HOMEWORK.some(k => has(q, k))) return { d: 'homework' };
+  if (ALWAYS.some(k => has(q, k)) || s.rules.some(list => list.some(k => has(q, k)))) return { d: 'block' };
+  const topic = Object.keys(TOPIC_KW).find(t => TOPIC_KW[t].some(k => has(q, k)));
+  return { d: !topic ? 'allow' : s.block.includes(topic) ? 'block' : s.careful.includes(topic) ? 'careful' : 'allow', topic };
+}
+function reply(q, c, k, files) {
+  const s = k.s, young = k.age < 11, P = k.parent;
+  if (c.d === 'care') return { text: `I'm really glad you told me. You're not alone, and you deserve help right now. Please talk to ${P} or another grown-up you trust. In the US you can also call or text 988 any time to talk to someone kind.` };
+  if (c.d === 'block') return { text: s.refusal };
+  if (c.d === 'homework') return { text: 'I don’t do homework, but I love explaining ideas! Tell me what the topic is and I’ll share something fascinating about it.', next: ['Why do we have numbers?', 'What’s the weirdest fact about space?'] };
+  if (q.includes('tell me!') && k.reveal) { const key = k.reveal; k.reveal = null; return full(key, k, young); }
+  const key = files.some(f => f.kind === 'photo') ? 'moon photo' : (ANSWER_KEYS.find(([, words]) => words.some(w => q.includes(w))) || [])[0];
+  if (files.some(f => f.kind === 'file') && !key) return { text: 'I read your article. Here’s the coolest part: lava can be over 1,100 °C, hot enough to melt glass! What part surprised you most?', next: ['Why is lava red?', 'Can scientists predict eruptions?'] };
+  if (key && s.style === 'think' && key !== 'moon photo') { k.reveal = key; return { text: 'Great question! What’s your guess first? Think about it for a moment, then tap below.', next: ['Tell me!'] }; }
+  if (key) return full(key, k, young);
+  if (c.topic === 'scary') return { text: `Some stories are made to be really scary, and it’s fine if they’re not your thing yet. Spooky-but-fun ones like Coraline are a good start. Check with ${P} before watching anything rated PG-13.` };
+  if (c.topic === 'substances') return { text: `Vaping means breathing in a heated liquid that usually has nicotine in it. Nicotine is very addictive and is especially hard on growing brains. ${P} is a good person to talk to about it.` };
+  if (c.topic === 'feelings') return { text: `That sounds hard. Do you want to tell me more? Talking to ${P} can help too.` };
+  if (c.d === 'careful') return { text: `Good question. Here’s a short, simple answer, and ${P} is a great person to ask for more.` };
+  return { text: 'What a great thing to wonder about! The real app answers here, in words that fit your age, and suggests what to explore next.', next: ['Surprise me with a fact!'] };
+}
+function full(key, k, young) {
+  const [base, more, next] = ANSWERS[key], s = k.s;
+  if (s.style === 'short') return { text: base.split(/(?<=[.!?])\s/)[0] };
+  return { text: base + (young ? '' : more), next };
+}
+
+/* ---------- views (shared by Mac and iPhone) ---------- */
+const visible = k => APPS.filter(([id]) => k.s.apps[id]).map(([id]) => id);
+const head = (k, title, sub, extra) => `<div class="head"><i class="avatar">${esc(k.name[0])}</i><div class="grow"><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</div>${extra || ''}<button class="round" data-act="settings" aria-label="Settings">${I.gear}</button></div>`;
+function notesView(k, u, dev) {
+  const n = k.s.apps.notes;
+  if (u.open != null && k.notes[u.open]) {
+    const note = k.notes[u.open];
+    return head(k, 'Notes', '') + `<div class="view"><button class="back" data-act="note-back">‹ All notes</button><div class="note-page"><span class="ktag">${esc(note.tag)}</span><input id="${dev}-ntitle" value="${esc(note.t)}" aria-label="Title"><textarea id="${dev}-nbody" aria-label="Note">${esc(note.b)}</textarea>${note.photo ? '<div class="photo" role="img" aria-label="Photo of a worksheet"></div>' : ''}</div>
+      ${n.photos && !note.photo ? `<button class="kbtn soft" data-act="note-photo">${dev === 'phone' ? 'Add a photo' : 'Add a photo from Photos'}</button>` : ''}</div>`;
+  }
+  const add = `<button class="round add" data-act="note-new" aria-label="New note">${I.plus}</button>`;
+  const menu = u.noteMenu && n.templates ? `<div class="templates">${TEMPLATES.map(([t, s, c], i) => `<button class="tpl" data-tpl="${i}" style="background:${c}">${t}<small>${s}</small></button>`).join('')}</div><button class="kbtn soft" data-act="note-blank">Blank note</button>` : '';
+  const cards = k.notes.map((note, i) => `<button class="kcard" data-note="${i}"><span class="ktag">${esc(note.tag)}</span><b>${esc(note.t || 'New note')}</b><p>${esc(note.b.split('\n')[0] || ' ')}</p></button>`).join('');
+  return head(k, 'Notes', `${k.notes.length} note${k.notes.length === 1 ? '' : 's'}`, add) + `<div class="view">${menu}${cards ? (dev === 'mac' ? `<div class="grid2">${cards}</div>` : cards) : '<p class="empty">Tap + to start your first note.</p>'}</div>`;
+}
+function journalView(k, u, dev) {
+  const j = k.s.apps.journal, prompt = PROMPTS[k.journal.length % PROMPTS.length];
+  return head(k, 'Journal', j.reminder ? `I’ll remind you at ${j.reminder}` : '') + `<div class="view">
+    <div class="prompt"><h5>${prompt}</h5>
+      <div class="moods" role="group" aria-label="How was today?">${MOODS.map(m => `<button data-mood="${m}" aria-pressed="${k.mood === m}">${m}</button>`).join('')}</div>
+      <textarea id="${dev}-journal" placeholder="Write as much or as little as you like…" aria-label="Journal entry" maxlength="600"></textarea>
+      <button class="kbtn" data-act="journal-save">Save entry</button>
+      <span class="private">${I.lock}Only you can read your journal.</span></div>
+    ${k.journal.map(e => `<div class="kcard"><span class="meta">${esc(e.d)} · ${esc(e.mood)}</span><p style="color:var(--text)">${esc(e.b)}</p></div>`).join('')}</div>`;
+}
+function moneyView(k) {
+  const m = k.s.apps.money;
+  const goals = k.goals.map((g, i) => `<div class="kcard goal${g.saved >= g.target ? ' done' : ''}"><b>${esc(g.name)}</b><div class="bar"><i style="width:${Math.min(100, g.saved / g.target * 100)}%"></i></div>
+    <div class="amt"><span>${g.saved >= g.target ? 'You did it!' : money(g.saved) + ' saved'}</span><span style="color:var(--text2)">of ${money(g.target)}</span></div>
+    ${g.saved < g.target ? `<div class="acts"><button data-goal="${i}" data-amt="1">+ $1</button><button data-goal="${i}" data-amt="5">+ $5</button></div>` : ''}</div>`).join('');
+  const accounts = m.mode === 'full' ? `<div class="kcard"><b>My accounts</b>${k.accounts.map(([n, v]) => `<div class="acct"><span>${n}</span><b>${money(v)}</b></div>`).join('')}<span class="meta">Spent this month: $23 · Snacks $9, Games $14</span></div>` : '';
+  return head(k, 'Money', m.mode === 'full' ? 'Savings and spending' : 'Savings goals') + `<div class="view">
+    ${m.allowance ? `<div class="allow-card"><b>${money(m.allowance)}</b><span>Your allowance arrives every Saturday</span></div>` : ''}${accounts}${goals}</div>`;
+}
+function askView(k, u, dev) {
+  const s = k.s, left = Math.max(0, s.daily - k.used);
+  // The Mac has no camera option; it chooses photos and files from Finder.
+  const opts = (dev === 'phone' ? [['camera', 'Take Photo', I.camera], ['library', 'Photo Library', I.photos], ['files', 'Choose File', I.file]] : [['library', 'Choose Photo…', I.photos], ['files', 'Choose File…', I.file]]).filter(([id]) => s.attach[id]);
+  const mine = k.pending.map((f, i) => [f, i]).filter(([f]) => f.dev === dev);
+  const fileChip = f => f.kind === 'photo' ? '<div class="photo moon" role="img" aria-label="Photo of the Moon"></div>' : `<span class="filechip">${I.file}${esc(f.name)}</span>`;
+  const bubbles = k.chat.map(m => m.me ? `<div class="bub me">${m.files.length ? `<div class="files">${m.files.map(fileChip).join('')}</div>` : ''}${m.text ? `<span>${esc(m.text)}</span>` : ''}</div>` : `<div class="bub ai${m.soft ? ' soft' : ''}">${esc(m.text)}</div>`).join('');
+  const welcome = `<div class="welcome"><h5>What are you curious about today?</h5><p>Ask me about space, animals, history, numbers, or how anything works.${opts.length ? ' You can show me a photo of something you found, too.' : ''}</p>
+    <div class="wonder"><small>Wonder of the day</small><b>${esc(WONDERS[k.wonder % WONDERS.length])}</b><button data-q="${esc(WONDERS[k.wonder % WONDERS.length])}">Find out</button></div>
+    <div class="sugs" style="margin-top:10px">${SUGS.map(([q, t, c]) => `<button class="sug" data-q="${esc(q)}"><span class="cat" style="color:${c}">${t}</span>${esc(q)}</button>`).join('')}</div>
+    <button class="kbtn soft" data-act="surprise" style="margin-top:10px;width:100%">Surprise me</button></div>`;
+  const lastAI = [...k.chat].reverse().find(m => !m.me);
+  const next = !k.typing && lastAI?.next?.length && k.chat[k.chat.length - 1] === lastAI ? `<div class="next">${lastAI.next.map(n => `<button data-q="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : '';
+  const pend = mine.length ? `<div class="pending">${mine.map(([f, i]) => `<div class="pchip">${f.kind === 'photo' ? '<div class="photo small moon" role="img" aria-label="Photo of the Moon"></div>' : `<div class="pfile">${I.file}<span>${esc(f.name)}</span></div>`}<button class="x" data-unpend="${i}" aria-label="Remove">×</button></div>`).join('')}</div>` : '';
+  const menu = u.menu && opts.length ? `<div class="menu" role="menu">${opts.map(([id, l, ic]) => `<button data-attach="${id}" role="menuitem">${ic}${l}</button>`).join('')}</div>` : '';
+  return head(k, `Hi ${esc(k.name)}!`, '') + `<div class="view" id="${dev}-chat">${k.chat.length ? bubbles + next : welcome}${k.typing ? '<div class="typing"><i></i><i></i><i></i></div>' : ''}</div>
+    <div class="composer">${menu}${pend}<form data-form="ask">${opts.length ? `<button type="button" class="clip" data-act="attach-menu" aria-label="Add a photo or file"${left && mine.length < 3 ? '' : ' disabled'}>${I.clip}</button>` : ''}<input id="${dev}-ask" placeholder="I wonder…" autocomplete="off" maxlength="300"${left ? '' : ' disabled'}><button class="send" aria-label="Send"${left && !k.typing ? '' : ' disabled'}>${I.send}</button></form>
+      <span class="left">${left ? `${left} questions left today` : 'That’s all for today. See you tomorrow!'}</span></div>`;
+}
+const VIEWS = { notes: notesView, journal: journalView, money: moneyView, ask: askView };
+function screenHTML(k, dev) {
+  const u = k.ui[dev], tabs = visible(k);
+  if (!tabs.includes(u.tab)) u.tab = dev === 'phone' && tabs.includes('ask') ? 'ask' : tabs[0];
+  const main = VIEWS[u.tab](k, u, dev);
+  const sheet = u.sheet ? `<div class="ksheet" role="dialog" aria-label="Settings"><h5>Settings</h5><p>A grown-up set up Notebook on this ${dev === 'mac' ? 'Mac' : 'iPhone'}, so there’s nothing to change here.</p><button class="kbtn" data-act="close-sheet">Got it</button></div>` : '';
+  const lock = k.s.lock && !u.unlocked ? `<div class="lock"><div class="face">${I.face}</div><h5>Notebook is locked</h5><button class="kbtn" data-act="unlock">Unlock with ${dev === 'mac' ? 'Touch ID' : 'Face ID'}</button></div>` : '';
+  return { tabs, main, sheet, lock };
+}
+const mac = document.getElementById('mac'), screen = document.getElementById('screen');
+function render(dev) {
+  const k = KIDS[who];
+  if (dev !== 'phone') {
+    const r = screenHTML(k, 'mac');
+    const scroll = mac.querySelector('.view')?.scrollTop;
+    mac.style.setProperty('--kid', k.color);
+    mac.innerHTML = `<div class="tb"><div class="lights"><i></i><i></i><i></i></div><span>Notebook</span></div><div class="mbody"><nav class="side" aria-label="Sections"><div class="me"><i class="avatar">${esc(k.name[0])}</i>${esc(k.name)}</div>${r.tabs.map(id => { const [, l, c] = APPS.find(a => a[0] === id); return `<button class="sideb" data-tab="${id}" aria-current="${k.ui.mac.tab === id}"><i style="background:${c}">${I.tab[id]}</i>${l}</button>`; }).join('')}</nav><div class="mpane">${r.main}</div></div>${r.sheet}${r.lock}`;
+    const v = mac.querySelector('.view'); if (v) v.scrollTop = k.ui.mac.tab === 'ask' ? v.scrollHeight : (scroll || 0);
+  }
+  if (dev !== 'mac') {
+    const r = screenHTML(k, 'phone');
+    const scroll = screen.querySelector('.view')?.scrollTop;
+    screen.style.setProperty('--kid', k.color);
+    screen.innerHTML = `<div class="island"></div><div class="sbar"><span>3:42</span><span>5G ▮</span></div>${r.main}<nav class="tabbar" aria-label="Sections">${r.tabs.map(id => `<button data-tab="${id}" aria-current="${k.ui.phone.tab === id}">${I.tab[id]}${APPS.find(a => a[0] === id)[1]}</button>`).join('')}</nav>${r.sheet}${r.lock}`;
+    const v = screen.querySelector('.view'); if (v) v.scrollTop = k.ui.phone.tab === 'ask' ? v.scrollHeight : (scroll || 0);
+  }
+}
+function renderAll() { render(); }
+function renderWho() {
+  const k = KIDS[who];
+  document.getElementById('who').innerHTML = Object.entries(KIDS).map(([id, c]) => `<button data-who="${id}" aria-pressed="${who === id}"><i style="background:${c.color}">${c.name[0]}</i>${c.name}, ${c.age}</button>`).join('');
+  const s = k.s;
+  document.getElementById('who-note').textContent = `${k.name}’s parent turned on ${visible(k).map(id => APPS.find(a => a[0] === id)[1]).join(', ')}, with Ask set to “${{ short: 'Short and simple', wonder: 'Explain and wonder', think: 'Guess first' }[s.style]}”` +
+    `${s.apps.money ? ` (Money: ${s.apps.money.mode === 'full' ? 'accounts and spending' : 'savings goals'})` : ''}` +
+    `${s.lock ? ', with Face ID' : ''}. ${k.name} never sees this summary.`;
+  document.getElementById('mac-label').textContent = k.name + "'s Mac";
+  document.getElementById('phone-label').textContent = k.name + "'s iPhone";
+}
+document.getElementById('who').addEventListener('click', e => { const b = e.target.closest('[data-who]'); if (!b) return; who = b.dataset.who; renderWho(); renderAll(); });
+
+/* ---------- interactions ---------- */
+function handle(dev, e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = KIDS[who], u = k.ui[dev];
+  let both = false;
+  if (b.dataset.tab) { u.tab = b.dataset.tab; u.open = null; u.noteMenu = false; u.menu = false; }
+  else if (b.dataset.q) { ask(dev, b.dataset.q); return; }
+  else if (b.dataset.note) u.open = +b.dataset.note;
+  else if (b.dataset.tpl) { const [t, , , body] = TEMPLATES[+b.dataset.tpl]; k.notes.unshift({ t, b: body, tag: t, photo: false }); shiftOpen(k, dev); u.noteMenu = false; u.open = 0; both = true; }
+  else if (b.dataset.mood) { k.mood = b.dataset.mood; both = true; }
+  else if (b.dataset.goal) { const g = k.goals[+b.dataset.goal]; g.saved = Math.min(g.target, g.saved + +b.dataset.amt); both = true; }
+  else if (b.dataset.attach) { k.pending.push(b.dataset.attach === 'files' ? { kind: 'file', name: 'Volcano article.pdf', dev } : { kind: 'photo', name: 'Moon photo', dev }); u.menu = false; }
+  else if (b.dataset.unpend) k.pending.splice(+b.dataset.unpend, 1);
+  else switch (b.dataset.act) {
+    case 'settings': u.sheet = true; break;
+    case 'close-sheet': u.sheet = false; break;
+    case 'unlock': u.unlocked = true; break;
+    case 'note-new': if (k.s.apps.notes.templates) u.noteMenu = !u.noteMenu; else { k.notes.unshift({ t: '', b: '', tag: 'Note', photo: false }); shiftOpen(k, dev); u.open = 0; both = true; } break;
+    case 'note-blank': k.notes.unshift({ t: '', b: '', tag: 'Note', photo: false }); shiftOpen(k, dev); u.noteMenu = false; u.open = 0; both = true; break;
+    case 'note-back': u.open = null; break;
+    case 'note-photo': k.notes[u.open].photo = true; both = true; break;
+    case 'journal-save': { const t = document.getElementById(dev + '-journal').value.trim(); if (!t) return; k.journal.unshift({ d: 'Today', mood: k.mood, b: t }); both = true; break; }
+    case 'attach-menu': u.menu = !u.menu; break;
+    case 'surprise': ask(dev, WONDERS[(k.wonder++ + 1) % WONDERS.length]); return;
+    default: return;
+  }
+  both ? renderAll() : render(dev);
+}
+function shiftOpen(k, dev) { const other = k.ui[dev === 'mac' ? 'phone' : 'mac']; if (other.open != null) other.open++; }
+mac.addEventListener('click', e => handle('mac', e));
+screen.addEventListener('click', e => handle('phone', e));
+for (const [dev, el] of [['mac', mac], ['phone', screen]]) {
+  el.addEventListener('submit', e => { e.preventDefault(); const v = document.getElementById(dev + '-ask').value.trim(); if (v || KIDS[who].pending.some(f => f.dev === dev)) ask(dev, v); });
+  el.addEventListener('input', e => {
+    const k = KIDS[who], u = k.ui[dev];
+    if (e.target.id === dev + '-ntitle') k.notes[u.open].t = e.target.value;
+    else if (e.target.id === dev + '-nbody') k.notes[u.open].b = e.target.value;
+    else return;
+    render(dev === 'mac' ? 'phone' : 'mac');
+  });
+}
+function ask(dev, text) {
+  const k = KIDS[who]; if (k.typing || k.used >= k.s.daily) return;
+  const files = k.pending.filter(f => f.dev === dev); k.pending = k.pending.filter(f => f.dev !== dev);
+  k.ui[dev].menu = false;
+  const q = ' ' + (text + ' ' + files.map(f => f.kind === 'photo' ? 'photo' : f.name).join(' ')).toLowerCase() + ' ';
+  const c = decide(q, k.s);
+  k.chat.push({ me: true, text, files }); k.used++; k.typing = true; renderAll();
+  setTimeout(() => { k.typing = false; const a = reply(q, c, k, files); k.chat.push({ text: a.text, next: a.next, soft: c.d === 'block' || c.d === 'care' }); renderAll(); }, c.d === 'block' ? 650 : 1100);
+}
+
+renderWho(); renderAll();
+})();
+</script>
+</body>
+</html>

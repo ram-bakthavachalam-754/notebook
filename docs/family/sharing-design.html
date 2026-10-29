@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Sharing Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: a design-review document. Sticky contents rail on the left, one 70ch reading column,
+   wide tables and diagrams allowed to scroll inside their own frames. Notebook's serif for headings. */
+:root {
+  --bg: #f6f6f4;
+  --paper: #ffffff;
+  --ink: #1b1b1d;
+  --ink2: #55555b;
+  --ink3: #8d8d94;
+  --line: #e2e2e0;
+  --accent: #0a72f0;
+  --accent-soft: rgba(10,114,240,.10);
+  --ok: #1f9d47;
+  --warn: #b86e00;
+  --stop: #cf3a30;
+  --care: #6f50e8;
+  --code-bg: #f1f1ef;
+  --font-head: Charter, "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 56px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0,1fr); gap: 0; } .toc { display: none; } }
+.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; }
+.toc b { display: block; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; counter-reset: s; }
+.toc li { counter-increment: s; }
+.toc a { color: var(--ink2); text-decoration: none; }
+.toc a::before { content: counter(s) ". "; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.toc a:hover { color: var(--accent); }
+main { max-width: 72ch; min-width: 0; counter-reset: h; }
+
+header.doc { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin: 0 0 8px; }
+h1 { font-family: var(--font-head); font-weight: 400; font-size: clamp(30px, 5vw, 40px); line-height: 1.12; margin: 0 0 12px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { font-size: 17px; color: var(--ink2); margin: 0 0 18px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink2); }
+.meta span b { color: var(--ink); font-weight: 600; }
+.proto { margin-top: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.proto p { margin: 0; flex: 1; min-width: 200px; font-size: 14px; color: var(--ink2); }
+.proto a { font-weight: 600; text-decoration: none; background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 7px; font-size: 14px; white-space: nowrap; }
+
+h2 { font-family: var(--font-head); font-weight: 400; font-size: 26px; line-height: 1.2; margin: 56px 0 12px; counter-increment: h; text-wrap: balance; scroll-margin-top: 20px; }
+h2::before { content: counter(h); font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--accent); display: block; margin-bottom: 4px; letter-spacing: .04em; }
+h3 { font-size: 15.5px; font-weight: 650; margin: 28px 0 6px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 5px; }
+li::marker { color: var(--ink3); }
+strong { font-weight: 650; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 0 0 16px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.k { color: var(--accent); } .c { color: var(--ink3); }
+
+.tbl { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); font-weight: 600; background: color-mix(in srgb, var(--bg) 60%, var(--paper)); white-space: nowrap; }
+td.n { white-space: nowrap; }
+.s { font-size: 11.5px; font-weight: 700; border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+.s-a { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.s-c { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.s-b { color: var(--stop); background: color-mix(in srgb, var(--stop) 12%, transparent); }
+.s-h { color: var(--care); background: color-mix(in srgb, var(--care) 13%, transparent); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 16px; font-size: 14.5px; }
+.callout p:last-child { margin: 0; }
+
+/* diagrams */
+.diagram { overflow-x: auto; margin: 6px 0 20px; }
+.flow { display: flex; align-items: stretch; gap: 0; min-width: 640px; }
+.node { flex: 1; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.node b { font-size: 13.5px; }
+.node span { color: var(--ink2); }
+.node.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.arrow { flex: 0 0 28px; display: grid; place-items: center; color: var(--ink3); font-size: 18px; }
+.branch { display: flex; gap: 8px; margin-top: 8px; min-width: 640px; font-size: 12.5px; color: var(--ink2); }
+.branch div { flex: 1; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 12px; }
+.branch b { color: var(--ink); }
+
+.arch { display: grid; grid-template-columns: 1fr 60px 1fr 60px 1fr; align-items: center; min-width: 680px; }
+.zone { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.zone > b { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); }
+.box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.box small { display: block; color: var(--ink2); }
+.wire { text-align: center; font-size: 11.5px; color: var(--ink2); line-height: 1.3; }
+.wire i { display: block; font-style: normal; font-size: 18px; color: var(--ink3); }
+
+.phases { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
+.phase { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.phase .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: 13px; }
+.phase h4 { margin: 2px 0 4px; font-size: 14.5px; }
+.phase p { margin: 0; font-size: 14px; color: var(--ink2); }
+footer { margin-top: 60px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+  <li><a href="#summary">Summary</a></li><li><a href="#what">What can be shared</a></li><li><a href="#experience">The experience</a></li>
+  <li><a href="#links">The Links section</a></li><li><a href="#finance">Sharing finance accounts</a></li><li><a href="#how">How it works</a></li>
+  <li><a href="#family">Family and kids</a></li><li><a href="#agent">The agent and shared items</a></li><li><a href="#edges">Edge cases</a></li>
+  <li><a href="#code">Code changes</a></li><li><a href="#phases">Build order</a></li><li><a href="#open">Open questions</a></li><li><a href="#built">As built</a></li>
+</ol></nav>
+<main>
+<header class="doc">
+  <p class="eyebrow">Design document · Draft</p>
+  <h1>Sharing in Notebook</h1>
+  <p class="lede">Share notes and links collections that both people can edit, and give family or other Notebook users a view-only window into finance accounts you track, without giving up the private, end-to-end encrypted notebook each person keeps.</p>
+  <div class="meta"><span><b>Author</b> Ramachandran Bakthavachalam</span><span><b>Date</b> 19 October 2026</span><span><b>Status</b> Built, testing (20 October 2026)</span><span><b>Applies to</b> Notebook 0.4 (Mac + iOS)</span></div>
+  <div class="proto"><p><a href="notebook-design.html" style="background:none;color:var(--accent);padding:0">Main design doc</a> · <strong>Prototype:</strong> your Mac and your partner's iPhone side by side. Share a note, a links collection or an account and watch it arrive.</p><a href="sharing-prototype.html">Sharing prototype</a><a href="design.html">Family controls design</a></div>
+</header>
+
+<h2 id="summary">Summary</h2>
+<p>Today every Notebook is private: one person, one iCloud account, one notebook key. This design adds <strong>shared items</strong>. You pick a note, a links collection or a finance account and share it with people who use Notebook, either from your family list or by email or phone number.</p>
+<ul>
+  <li><strong>Notes and links collections</strong> are live and editable by everyone you choose. Changes sync both ways.</li>
+  <li><strong>Finance accounts</strong> are always view only. You choose how much they see: the balance, the holdings, or the transactions too.</li>
+  <li><strong>Links</strong> is a new section for saving web links into collections.</li>
+</ul>
+<p>Each shared item lives in its own CloudKit zone, shared through Apple's CloudKit sharing. CloudKit enforces who can read and who can write, so "view only" is enforced by Apple's servers, not just hidden in the app. Content stays end-to-end encrypted: Apple can't read shared notes, links or account details.</p>
+
+<h2 id="what">What can be shared</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Item</th><th>Permissions</th><th>What the other person gets</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Note</strong></td><td><span class="s s-a">Can edit</span> or <span class="s s-c">View only</span>, per person</td><td>The note in their Notes under "Shared with you", with photos. Edits sync to everyone.</td></tr>
+    <tr><td><strong>Links collection</strong></td><td><span class="s s-a">Can edit</span> or <span class="s s-c">View only</span>, per person</td><td>The collection in their Links. Anyone who can edit can add or remove links. Each link shows who saved it.</td></tr>
+    <tr><td><strong>Finance account</strong></td><td><span class="s s-c">View only</span> always</td><td>A read-only account in their Finance under "Shared accounts", at the level you choose. It never counts in their net worth.</td></tr>
+  </tbody>
+</table></div>
+<p><strong>Decided:</strong> there are no jointly owned accounts. Each account has one owner who tracks it; others only view it.</p>
+<p>Journal entries can't be shared. The journal stays private by design. Whole sections (all notes, all accounts) can't be shared either. Sharing is always one item at a time, so nothing is shared by accident.</p>
+
+<h2 id="experience">The experience</h2>
+<h3>Sharing something</h3>
+<ol>
+  <li>Click <strong>Share</strong> in the note's toolbar, on a links collection, or on an account row in Finance.</li>
+  <li>Pick people. Family members appear as one-tap chips (Partner, Sam, Alex). Anyone else is invited by email or phone number.</li>
+  <li>Choose <strong>Can edit</strong> or <strong>View only</strong> for each person. For an account, also choose <em>Balance only</em>, <em>Balance and holdings</em> or <em>Holdings and transactions</em>.</li>
+  <li>Press <strong>Share</strong>. Family members on Notebook get it straight away. New people get an invitation link by Messages or Mail.</li>
+</ol>
+<p>Shared items show the people's avatars in lists and a "Shared with Partner" line in the editor. <strong>Stop sharing</strong> in the same sheet removes everyone's access at once.</p>
+<h3>Receiving something</h3>
+<ul>
+  <li>A notification says "Ram shared a note: Grocery list", with <strong>Open</strong>. The section's tab gets a dot until they look.</li>
+  <li>Shared items appear in a <strong>Shared with you</strong> group at the bottom of Notes and Links, and under <strong>Shared accounts</strong> in Finance, each with the owner's avatar and a Can edit or View only label.</li>
+  <li>View-only items open read-only. There's no edit control to tap and fail.</li>
+  <li><strong>Leave</strong> removes a shared item from your notebook. The owner and others keep it.</li>
+</ul>
+<h3>Managing shares</h3>
+<p>Settings gets a <strong>Sharing</strong> page with two lists. <em>Shared by you</em> shows each item, who has it and their permission. <em>Shared with you</em> shows each item and who it's from. You can change or stop any share from there.</p>
+
+<h2 id="links">The Links section</h2>
+<p>A new fourth section alongside Notes, Journal and Finance, for saving web pages to come back to and share.</p>
+<ul>
+  <li><strong>Collections</strong>, such as Reading list, Recipes or Kids' science videos. A link belongs to one collection and can have tags and a short note.</li>
+  <li><strong>Adding a link:</strong> paste a URL, use the share sheet from Safari on iPhone, or drop a link onto the window on Mac. Notebook fetches the page title and site name on your device using the agent's existing safe web reader, which blocks private networks and handles redirects safely.</li>
+  <li><strong>Each link</strong> shows its title, site, who saved it and when. Opening it goes to your browser.</li>
+  <li><strong>The agent</strong> can search, add and organize links ("save this recipe to Recipes", "what did we save about Rome?").</li>
+</ul>
+<p>Links records join the existing sync as a new <code>links</code> kind, like notes, so they work offline and sync between your own devices whether or not they're shared.</p>
+
+<h2 id="finance">Sharing finance accounts</h2>
+<p>Each adult creates and tracks their own accounts in their own Finance, as today. Sharing never merges notebooks or changes who owns an account. When you share an account, it appears in the other person's Finance under <strong>Shared accounts</strong>, read only, with your name on it. Only you can change it, and they can't share it on.</p>
+<div class="tbl"><table>
+  <thead><tr><th>Level</th><th>They see</th><th>They never see</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Balance only</strong></td><td>Account name, type and current value</td><td rowspan="3">Your other accounts, your net worth, spending, notes, strategies, connection details or account numbers</td></tr>
+    <tr><td><strong>Balance and holdings</strong></td><td>Plus each holding: ticker, quantity and value</td></tr>
+    <tr><td><strong>Holdings and transactions</strong></td><td>Plus buys, sells, deposits and dividends</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>A projection, not your records.</strong> Your device publishes a view of the account at the chosen level into the share, and updates it whenever the account changes. The other person's device never receives more than that level, so lowering the level really removes data.</li>
+  <li><strong>Prices.</strong> Holdings are valued on the viewer's device with their own price refresh, so the view stays current without your Mac being on. The last value you published is shown when prices aren't available.</li>
+  <li><strong>Not counted.</strong> Shared accounts never count in the viewer's net worth or show up in their spending. The agent labels them as someone else's.</li>
+  <li><strong>View only, for real.</strong> Every person on an account share is a read-only CloudKit participant, so their device can't write to it even if it tried.</li>
+</ul>
+
+<h2 id="how">How it works</h2>
+<div class="diagram">
+  <div class="arch">
+    <div class="zone"><b>Owner's iCloud</b>
+      <div class="box">Private notebook zone<small>Unchanged. Notebook key, app-encrypted.</small></div>
+      <div class="box">Share-&lt;id&gt; zone<small>One per shared item. Shared with a CKShare.</small></div></div>
+    <div class="wire"><i>⇄</i>CloudKit<br>sharing</div>
+    <div class="zone"><b>Inside the share zone</b>
+      <div class="box">ShareKey record<small>Per-share key in CloudKit encrypted fields</small></div>
+      <div class="box">Revision records<small>Encrypted with the share key</small></div></div>
+    <div class="wire"><i>⇄</i>Shared<br>database</div>
+    <div class="zone"><b>Participant's devices</b>
+      <div class="box">Shared database engine<small>A second CKSyncEngine</small></div>
+      <div class="box">Local store<small>Records marked with their share</small></div></div>
+  </div>
+</div>
+<h3>Zones and shares</h3>
+<ul>
+  <li><strong>One zone per item.</strong> Sharing an item moves its records into a new <code>Share-&lt;uuid&gt;</code> zone in the owner's private database, and creates a zone-wide <code>CKShare</code> for it. One share per item means permissions and "stop sharing" are exact.</li>
+  <li><strong>Second sync engine.</strong> Participants see the zone in their <code>sharedCloudDatabase</code>. Each device runs a second <code>CKSyncEngine</code> for the shared database next to the existing private one. The owner's devices sync the share zone through their private engine as usual.</li>
+  <li><strong>Same records.</strong> Shared items use the existing immutable revision records, causal history and conflict handling. A shared note behaves exactly like a private one, including keeping both versions on conflict.</li>
+</ul>
+<h3>Encryption</h3>
+<p>Private records are encrypted with the notebook key, which other people must never get. Each share therefore gets its own random 256-bit <strong>share key</strong>.</p>
+<ul>
+  <li>The share key is stored in a <code>ShareKey</code> record inside the share zone, in a CloudKit <code>encryptedValues</code> field. CloudKit encrypts those fields on the device and only makes them readable to the share's participants. Apple can't read them.</li>
+  <li>Revision payloads in the zone are sealed with the share key using the existing <code>SyncCrypto</code> code, with the share ID as context.</li>
+  <li>Stopping a share deletes the zone. If the owner later re-shares the item, it gets a new key.</li>
+</ul>
+<h3>Inviting and accepting</h3>
+<ul>
+  <li><strong>People are Apple Accounts.</strong> Participants are looked up by email or phone (<code>CKContainer.shareParticipant(forEmailAddress:)</code> and the phone variant) and added with read-write or read-only permission.</li>
+  <li><strong>iPhone</strong> accepts invitations through the system: tapping the link opens Notebook, which receives the share in its scene delegate.</li>
+  <li><strong>Mac</strong> can't rely on that callback, because sync runs in a helper app. Notebook accepts a pasted or clicked invitation link itself with <code>CKFetchShareMetadataOperation</code> and <code>CKAcceptSharesOperation</code>. An accepted share belongs to the account, so it appears on every device of that person.</li>
+  <li><strong>Family members</strong> on the Family list have their Apple Account email saved once, so sharing with them is one tap and needs no link.</li>
+</ul>
+
+<h2 id="family">Family and kids</h2>
+<ul>
+  <li><strong>Family list.</strong> The Family section (see the <a href="design.html">family controls design</a>) gives the people chips in the share sheet: Partner, Sam, Alex.</li>
+  <li><strong>New parent setting.</strong> The Apps tab of each child's Family settings gets a <strong>Sharing</strong> setting: <em>Off</em>, <em>Family only</em> (the default) or <em>Anyone on Notebook</em>. A child set to Family only can't accept invitations from, or share with, people outside the family list.</li>
+  <li><strong>Kids sharing items.</strong> Kids can share notes and links collections, for example a "Space facts" note with a sibling. Finance sharing isn't offered to kids.</li>
+  <li><strong>Agent rules don't apply to shared items.</strong> A child's agent rules cover the agent, not what other people write in a shared note. Parents decide who a child may share with.</li>
+</ul>
+
+<h2 id="agent">The agent and shared items</h2>
+<ul>
+  <li><strong>What the agent can see.</strong> It can read items shared with you and edit them only where you can edit. A view-only item is read-only to the agent too, enforced in <code>AgentCore.execute</code> as well as by CloudKit.</li>
+  <li><strong>Labels.</strong> Tool results label shared items with their owner, and shared accounts as "shared by Partner, not yours".</li>
+  <li><strong>Untrusted content.</strong> Text other people wrote is untrusted data, the same as web pages. It can't authorize actions, and the existing instructions already say so.</li>
+  <li><strong>Sharing needs you.</strong> The agent never shares or stops sharing anything. That always takes you in the share sheet.</li>
+</ul>
+
+<h2 id="edges">Edge cases</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Situation</th><th>What happens</th></tr></thead>
+  <tbody>
+    <tr><td>Both edit the same shared note offline</td><td>Both versions are kept with the existing conflict copy, for everyone on the share.</td></tr>
+    <tr><td>The owner stops sharing</td><td>The item disappears from the others' notebooks with a notice. The owner keeps it as a private item again.</td></tr>
+    <tr><td>A participant leaves</td><td>It's removed from their notebook. Everyone else keeps it.</td></tr>
+    <tr><td>The owner deletes a shared note</td><td>The share ends for everyone. Before deleting, the owner is asked to confirm, since it removes the note for others too.</td></tr>
+    <tr><td>An account is shared, then the owner lowers the level</td><td>The next projection omits holdings or transactions, and the viewer's copies of them are deleted.</td></tr>
+    <tr><td>The invitee doesn't have Notebook</td><td>The invitation link explains Notebook is needed. Until then it stays pending in the share sheet.</td></tr>
+    <tr><td>The invitee uses an older Notebook</td><td>Older versions ignore the shared database. The item appears once they update.</td></tr>
+    <tr><td>iCloud account changes on a device</td><td>The existing account-change pause also stops the shared engine. Nothing is mixed between accounts.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="code">Code changes</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Where</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td><code>native/Sources/NotebookCore/CloudShares.swift</code> <em>(new)</em></td><td>Create share zones and <code>CKShare</code>s, look up participants, set permissions, accept from URL, stop and leave, the share-key record, and the shared-database <code>CKSyncEngine</code>.</td></tr>
+    <tr><td><code>RecordStore.swift</code></td><td>A <code>share</code> column on revisions and a shares table (zone, owner, permission, people). New <code>links</code> and <code>accountViews</code> kinds. Moving an item between zones.</td></tr>
+    <tr><td><code>CloudSync.swift</code>, <code>NotebookBridge</code></td><td>Route revisions to the right zone and key. New helper actions: <code>share-create</code>, <code>share-update</code>, <code>share-stop</code>, <code>share-accept</code>, <code>share-leave</code>, <code>shares</code>.</td></tr>
+    <tr><td><code>js/apps/links/</code> <em>(new)</em>, iOS <code>LinksViews.swift</code> <em>(new)</em></td><td>The Links section on both platforms. iOS share extension for saving from Safari.</td></tr>
+    <tr><td><code>js/apps/portfolio/</code>, <code>FinanceViews.swift</code></td><td>Share action on accounts, the projection writer, and the "Shared with you" read-only group, excluded from all totals.</td></tr>
+    <tr><td><code>js/apps/notes/</code>, <code>NotebookViews.swift</code></td><td>Share button, shared avatars and line, "Shared with you" group, read-only mode.</td></tr>
+    <tr><td><code>js/components/share-sheet.js</code> <em>(new)</em>, iOS share sheet</td><td>The people picker with family chips, invite field, permissions, account level and stop sharing.</td></tr>
+    <tr><td><code>js/agent/agent-core.js</code></td><td><code>links</code> collections and tools, shared-item labels, write checks for view-only items.</td></tr>
+    <tr><td>Entitlements, <code>Info.plist</code></td><td><code>CKSharingSupported</code>. The CloudKit schema gets <code>ShareKey</code> and the share record types, deployed to Production.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="phases">Build order</h2>
+<div class="phases">
+  <div class="phase"><span class="num">1</span><div><h4>Links section</h4><p>Collections, adding and title fetching, sync between your own devices, and agent tools. Useful before any sharing exists.</p></div></div>
+  <div class="phase"><span class="num">2</span><div><h4>Sharing core</h4><p>Share zones, share keys, the shared-database engine, accept and leave, with native tests on isolated test containers.</p></div></div>
+  <div class="phase"><span class="num">3</span><div><h4>Notes and links sharing</h4><p>Share sheet, Shared with you groups, permissions, notifications, Settings → Sharing.</p></div></div>
+  <div class="phase"><span class="num">4</span><div><h4>Finance account sharing</h4><p>Projections at three levels, the read-only account view, totals that exclude shared accounts.</p></div></div>
+  <div class="phase"><span class="num">5</span><div><h4>Family and kids</h4><p>Family chips, the kids' Sharing setting, CloudKit Production schema, TestFlight.</p></div></div>
+</div>
+
+<h2 id="open">Open questions</h2>
+<ul>
+  <li><strong>Copy on stop.</strong> When an owner stops sharing a note, should the others be offered "Keep a copy"?</li>
+  <li><strong>Sharing outside Notebook.</strong> A one-off "Send a copy" (text, Markdown or PDF through the share sheet) would cover people without the app. It's easy to add alongside.</li>
+  <li><strong>Distribution.</strong> Other Notebook users need the app, which today means TestFlight or a signed Mac build.</li>
+</ul>
+<h2 id="built">As built</h2>
+<p>Built on 20 October 2026 for Mac and iPhone. Where the build differs from the design above:</p>
+<ul>
+  <li><strong>Separate local stores, not a share column.</strong> Each share has its own SQLite file (<code>Shares/&lt;id&gt;.sqlite</code>) with the same revision records. The notebook database and its upload queue are unchanged, so a mistake in sharing can't reach the private notebook's records.</li>
+  <li><strong>No second sync engine.</strong> Share zones sync with plain CloudKit change fetches (<code>databaseChanges</code> and <code>recordZoneChanges</code>) in <code>ShareSync</code>, for both the private and the shared database. The private notebook's <code>CKSyncEngine</code> isn't touched. It already ignores records outside its own zone.</li>
+  <li><strong>Records refused by kind.</strong> A note share accepts only that note and photos, an account share only that account's view, a links share only links. Anything else arriving in a share zone is refused.</li>
+  <li><strong>Levels.</strong> Lowering an account's level hides those details from then on. Stop Sharing deletes the zone, which removes everything the others received.</li>
+  <li><strong>Prices.</strong> The owner republishes a view when the account changes, or at most hourly when only prices moved. Viewers value holdings with their own prices.</li>
+  <li><strong>Kids.</strong> Family only uses the Apple Account emails the parent lists in the child's Sharing setting.</li>
+  <li><strong>Not yet.</strong> The agent reading shared items, notifications, family chips in the share sheet, "Keep a copy" on stop.</li>
+</ul>
+<footer>Notebook · Sharing design · Draft for review</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+// The native Mac app. It needs iCloud permissions only in a signed, provisioned
+// build: set NOTEBOOK_MAC_ENTITLEMENTS in Signing.local.xcconfig to enable sync.
+NOTEBOOK_MAC_BUNDLE_ID = com.ram.notebook.mac
+NOTEBOOK_MAC_ENTITLEMENTS =
+// Local/simulator builds work without an Apple account. Enable cloud only after
+// selecting a paid team and provisioning the container in Signing.local.xcconfig.
+NOTEBOOK_CLOUD_ENABLED = NO
+NOTEBOOK_CLOUD_CONTAINER = iCloud.com.ram.notebook
+// Saving links from Safari's share sheet needs an App Group shared by the app
+// and its extension. Empty turns it off; set it in Signing.local.xcconfig.
+NOTEBOOK_APP_GROUP =
+NOTEBOOK_SHARE_ENTITLEMENTS =
+PRODUCT_BUNDLE_IDENTIFIER = com.ram.notebook.ios
+CODE_SIGN_STYLE = Automatic
+SWIFT_VERSION = 5.0
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+#include? "Signing.local.xcconfig"

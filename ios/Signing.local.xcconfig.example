@@ -1,0 +1,14 @@
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+PRODUCT_BUNDLE_IDENTIFIER = com.yourteam.notebook.ios
+NOTEBOOK_CLOUD_CONTAINER = iCloud.com.yourteam.notebook
+NOTEBOOK_CLOUD_ENABLED = YES
+CODE_SIGN_ENTITLEMENTS = Notebook/Notebook.entitlements
+// Native Mac app: register this App ID with the same iCloud container.
+NOTEBOOK_MAC_BUNDLE_ID = com.yourteam.notebook.mac
+NOTEBOOK_MAC_ENTITLEMENTS = NotebookMac/NotebookMac.entitlements
+// Optional: save links from Safari's share sheet. Register the App Group for
+// both App IDs (Xcode does this with automatic signing), then use the
+// entitlements that include it.
+// NOTEBOOK_APP_GROUP = group.com.yourteam.notebook
+// CODE_SIGN_ENTITLEMENTS = Notebook/NotebookWithShare.entitlements
+// NOTEBOOK_SHARE_ENTITLEMENTS = NotebookShare/NotebookShare.entitlements

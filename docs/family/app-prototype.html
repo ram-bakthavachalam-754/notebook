@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook App Prototype</title>
+<style>
+/* Layout: a desk with the grown-up Notebook on a Mac (title-bar switch, list/editor split) and an iPhone
+   (tab bar). One shared state, so an edit on either device shows up on the other, like iCloud sync.
+   Palette and type follow Notebook's own tokens (css/core.css): off-white ground, white panels, ink,
+   one blue accent, a muted hue per app, Charter for headings. */
+:root {
+  --desk: #e7e6e1;
+  --bg: #f5f5f3; --surface: #ffffff; --hover: #ebebe8;
+  --text: #171717; --text2: #4f4f4c; --text3: #6f6f6c; --text4: #a3a3a0;
+  --border: #e4e4e0; --border2: #ececea;
+  --accent: #2f6bff; --accent-soft: rgba(47,107,255,.12);
+  --green: #16a34a; --red: #d64545; --amber: #d97706;
+  --hue-notes: #d97706; --hue-journal: #ec407a; --hue-finance: #16a34a; --hue-agent: #ab47bc; --hue-links: #0891b2; --partner: #c2417a;
+  --shadow: 0 30px 60px -22px rgba(20,20,10,.32), 0 0 0 .5px rgba(0,0,0,.14);
+  --bezel: #1b1b1d;
+  --font-serif: Charter, "Iowan Old Style", "Source Serif Pro", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #222221;
+  --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --accent-soft: rgba(93,139,255,.16);
+  --green: #4ade80; --red: #f87171; --amber: #fbbf24;
+  --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050505; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #222221;
+  --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --accent-soft: rgba(93,139,255,.16);
+  --green: #4ade80; --red: #f87171; --amber: #fbbf24;
+  --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050505; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text); font-family: var(--font-sans); font-size: 13px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 48px; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.top { max-width: 1280px; margin: 0 auto 18px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.top h1 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 28px; letter-spacing: -.01em; }
+.top p { margin: 4px 0 0; color: var(--text2); max-width: 70ch; font-size: 13.5px; }
+.links { display: flex; gap: 4px; flex-wrap: wrap; font-size: 12.5px; }
+.links a { color: var(--text2); text-decoration: none; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); }
+.links a[aria-current="page"] { color: var(--surface); background: var(--text); border-color: var(--text); }
+.stage { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 352px; gap: 30px; align-items: start; }
+@media (max-width: 1040px) { .stage { grid-template-columns: minmax(0,1fr); } .phone-wrap { justify-self: center; } }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); margin: 0 0 9px 4px; display: flex; gap: 8px; align-items: center; }
+.synced { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--green); opacity: 0; transition: opacity .3s; }
+.synced.on { opacity: 1; }
+
+/* ---------- Mac ---------- */
+.mac-wrap { position: relative; min-width: 0; }
+.mac { background: var(--bg); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; height: 700px; min-width: 0; }
+@media (max-width: 720px) { .mac { height: auto; min-height: 640px; } }
+.tb { height: 52px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 94%, transparent); }
+.lights { display: flex; gap: 8px; flex: 0 0 auto; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.switcher { display: flex; gap: 2px; background: var(--hover); border-radius: 9px; padding: 2px; margin: 0 auto; overflow-x: auto; max-width: 100%; }
+.switcher button { border: 0; background: none; padding: 5px 12px; border-radius: 7px; font-size: 12.5px; font-weight: 500; color: var(--text2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.switcher button i { width: 8px; height: 8px; border-radius: 3px; display: block; }
+.switcher button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.tbtn { border: 0; background: none; width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; color: var(--text2); flex: 0 0 auto; }
+.tbtn:hover { background: var(--hover); }
+.tbtn svg { width: 17px; height: 17px; fill: currentColor; }
+.mbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px minmax(0,1fr); }
+.mbody.single { grid-template-columns: minmax(0,1fr); }
+@media (max-width: 720px) { .mbody { grid-template-columns: minmax(0,1fr); } .mbody .list { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); } }
+.list { border-right: 1px solid var(--border); overflow-y: auto; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+.list-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 8px; }
+.list-head b { font-family: var(--font-serif); font-weight: 400; font-size: 20px; }
+.newbtn { border: 1px solid var(--border); background: var(--surface); border-radius: 7px; padding: 3px 10px; font-size: 12px; }
+.item { border: 0; background: none; text-align: left; padding: 9px 10px; border-radius: 8px; display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.item:hover { background: var(--hover); }
+.item[aria-current="true"] { background: var(--accent-soft); }
+.item b { font-weight: 600; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.item span { color: var(--text3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pin { font-size: 10px; color: var(--hue-notes); }
+.sec { font-size: 11px; font-weight: 600; color: var(--text4); padding: 12px 10px 4px; }
+.psec { font-size: 12px; font-weight: 600; color: var(--text3); padding: 8px 4px 0; }
+.item .row1 { display: flex; align-items: center; gap: 6px; }
+.av { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 9.5px; font-weight: 700; font-style: normal; flex: 0 0 auto; background: var(--partner); }
+.badge { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
+.badge.view { background: color-mix(in srgb, var(--amber) 14%, transparent); color: var(--amber); }
+.badge.edit { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+.sharedline { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); flex-wrap: wrap; }
+.ehead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+a.btn { text-decoration: none; color: inherit; font-size: 12px; }
+.lk { display: flex; gap: 12px; padding: 11px 12px; border: 1px solid var(--border2); background: var(--surface); border-radius: 12px; align-items: flex-start; }
+.lk .fav { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+.lk .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lk b { font-size: 14px; font-weight: 600; }
+.lk span { font-size: 12px; color: var(--text3); overflow-wrap: anywhere; }
+.lk small { font-size: 11.5px; color: var(--text4); }
+.addlink { display: flex; gap: 8px; }
+.addlink input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 10px; outline: none; }
+.addlink input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.hold { display: grid; grid-template-columns: 64px minmax(0,1fr) 90px; gap: 8px; padding: 6px 16px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text2); }
+.hold b { color: var(--text); font-weight: 600; }
+.hold span:last-child { text-align: right; }
+.editor { overflow-y: auto; padding: 26px 40px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+@media (max-width: 520px) { .editor { padding: 18px; } }
+.editor input.title { border: 0; background: none; outline: none; font-family: var(--font-serif); font-size: 30px; padding: 0; width: 100%; }
+.editor .meta { color: var(--text3); font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.tagc { font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: var(--hover); color: var(--text2); }
+.editor textarea { border: 0; background: none; outline: none; resize: none; font-size: 15px; line-height: 1.65; flex: 1; min-height: 300px; width: 100%; max-width: 68ch; }
+.moodsel { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+
+.fin { overflow-y: auto; padding: 24px 30px; display: flex; flex-direction: column; gap: 18px; min-height: 0; }
+@media (max-width: 520px) { .fin { padding: 18px 14px; } }
+.fin h2 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 26px; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 620px) { .tiles { grid-template-columns: minmax(0,1fr); } }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.tile small { color: var(--text3); font-size: 11.5px; }
+.tile b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.tile .d { font-size: 12px; color: var(--green); font-variant-numeric: tabular-nums; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.panel h3 { margin: 0; padding: 12px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border2); display: flex; justify-content: space-between; }
+.panel h3 small { color: var(--text3); font-weight: 400; }
+.prow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 16px; font-variant-numeric: tabular-nums; }
+.prow + .prow { border-top: 1px solid var(--border2); }
+.prow span:first-child { color: var(--text2); }
+.prow .neg { color: var(--red); }
+.cats { padding: 12px 16px; display: flex; flex-direction: column; gap: 9px; }
+.cat { display: grid; grid-template-columns: 96px minmax(0,1fr) 64px; gap: 10px; align-items: center; font-size: 12.5px; }
+.cat .bar { height: 8px; border-radius: 99px; background: var(--hover); overflow: hidden; }
+.cat .bar i { display: block; height: 100%; background: var(--hue-finance); border-radius: 99px; opacity: .8; transition: width .4s; }
+.cat b { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+@media (max-width: 720px) { .two { grid-template-columns: minmax(0,1fr); } }
+
+.chatpane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.msgs { flex: 1; overflow-y: auto; padding: 22px 34px; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+@media (max-width: 520px) { .msgs { padding: 16px 14px; } }
+.welcome h2 { font-family: var(--font-serif); font-weight: 400; font-size: 28px; line-height: 1.15; margin: 8px 0 6px; }
+.welcome p { color: var(--text2); margin: 0 0 14px; max-width: 56ch; }
+.sugs { display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.sug { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px; text-align: left; display: flex; justify-content: space-between; gap: 10px; }
+.sug span { color: var(--text3); font-size: 12px; }
+.sug:hover { border-color: var(--text4); }
+.m { max-width: 640px; display: flex; flex-direction: column; gap: 6px; animation: rise .2s ease-out; }
+.m .who { font-size: 11px; font-weight: 600; color: var(--text3); }
+.m.user { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 12px 16px; }
+.m.ai p { margin: 0; font-size: 14.5px; line-height: 1.6; }
+.m.ai ul { margin: 0; padding-left: 20px; font-size: 14.5px; line-height: 1.6; }
+.act { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+.act::before { content: "✓"; color: var(--green); font-weight: 700; }
+.files { display: flex; gap: 8px; flex-wrap: wrap; }
+.receipt { width: 120px; height: 150px; border-radius: 8px; border: 1px solid var(--border); background: #fbfbf7; color: #333; font-family: var(--font-mono); font-size: 7.5px; line-height: 1.5; padding: 8px; overflow: hidden; white-space: pre; }
+.receipt.sm { width: 52px; height: 64px; font-size: 3.4px; padding: 4px; }
+.fchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--bg); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.fchip svg { width: 14px; height: 14px; fill: var(--hue-agent); }
+.composer { border-top: 1px solid var(--border); padding: 12px 18px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); position: relative; }
+.cbox { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.cbox textarea { border: 0; background: none; outline: none; resize: none; min-height: 40px; font-size: 14px; width: 100%; }
+.crow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.crow .sp { flex: 1; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.sendb { border: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--text); color: var(--surface); display: grid; place-items: center; }
+.sendb:disabled { opacity: .35; }
+.sendb svg { width: 15px; height: 15px; fill: currentColor; }
+.cfoot { font-size: 11px; color: var(--text4); }
+.attachb { border: 1px solid var(--border); background: none; color: var(--text2); border-radius: 8px; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+.attachb svg { width: 14px; height: 14px; fill: currentColor; }
+.attachb:hover { color: var(--text); border-color: var(--text4); }
+.composer .menu { left: 18px; bottom: 100%; }
+.composer .menu button { font-size: 13.5px; }
+.typing { display: flex; gap: 4px; padding: 4px 0; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text4); animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .3; } }
+@keyframes rise { from { opacity: .3; transform: translateY(4px); } }
+
+.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.28); display: grid; place-items: start center; padding-top: 70px; z-index: 5; border-radius: 12px; }
+.sheet { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); width: min(480px, calc(100% - 24px)); max-height: calc(100% - 90px); overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.sheet h2 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 24px; }
+.sgroup h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); }
+.scard { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; flex-wrap: wrap; }
+.srow + .srow { border-top: 1px solid var(--border2); }
+.srow span { color: var(--text2); }
+.srow small { color: var(--text3); }
+.srow a, .srow .lnk { color: var(--accent); text-decoration: none; font-weight: 500; border: 0; background: none; padding: 0; }
+.av { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; margin-right: 8px; vertical-align: middle; font-style: normal; }
+.btn { border: 1px solid var(--border); background: var(--surface); border-radius: 7px; padding: 5px 14px; font-weight: 500; }
+.btn.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+/* ---------- iPhone ---------- */
+.phone-wrap { width: min(352px, 100%); }
+.phone { background: var(--bezel); border-radius: 50px; padding: 11px; box-shadow: var(--shadow); }
+.screen { background: var(--bg); border-radius: 40px; height: 720px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.island { width: 100px; height: 29px; background: #000; border-radius: 20px; margin: 10px auto 0; flex: 0 0 auto; }
+.sbar { position: absolute; top: 15px; left: 30px; right: 28px; display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; pointer-events: none; }
+.nav { display: flex; align-items: center; gap: 8px; padding: 10px 16px 6px; flex: 0 0 auto; min-height: 46px; }
+.nav h3 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 26px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav .back { border: 0; background: none; color: var(--accent); font-size: 15px; padding: 0; flex: 1; text-align: left; }
+.ibtn { border: 0; background: none; color: var(--accent); width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; }
+.ibtn svg { width: 20px; height: 20px; fill: currentColor; }
+.pview { flex: 1; overflow-y: auto; padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.pcard { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; }
+button.pcard { cursor: pointer; }
+.pcard b { font-size: 15px; font-weight: 600; }
+.pcard span { color: var(--text3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard .tiny { font-size: 11.5px; color: var(--text4); }
+.pedit { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.pedit input { border: 0; background: none; outline: none; font-family: var(--font-serif); font-size: 26px; padding: 0; }
+.pedit textarea { border: 0; background: none; outline: none; resize: none; font-size: 16px; line-height: 1.6; flex: 1; min-height: 320px; }
+.pbig { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 2px; }
+.pbig small { color: var(--text3); }
+.pbig b { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pchat { flex: 1; overflow-y: auto; padding: 6px 14px 10px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.pchat .m.user { align-self: flex-end; max-width: 88%; padding: 10px 13px; }
+.pchat .m.ai p, .pchat .m.ai ul { font-size: 15px; }
+.pcomp { padding: 8px 12px 6px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; position: relative; }
+.pcomp .cbox { padding: 8px 10px; }
+.pcomp textarea { font-size: 15px; min-height: 22px; }
+.clip { border: 0; background: none; color: var(--text2); width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; }
+.clip svg { width: 19px; height: 19px; fill: currentColor; }
+.clip:hover { background: var(--hover); }
+.pend { display: flex; gap: 8px; flex-wrap: wrap; }
+.pchip { position: relative; }
+.pchip .x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; line-height: 18px; padding: 0; }
+.menu { position: absolute; bottom: 100%; left: 12px; margin-bottom: 6px; background: var(--surface); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.2), 0 0 0 1px var(--border); padding: 5px; min-width: 200px; display: flex; flex-direction: column; z-index: 3; animation: rise .15s ease-out; }
+.menu button { border: 0; background: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-radius: 9px; font-size: 15px; text-align: left; }
+.menu button:hover { background: var(--hover); }
+.menu svg { width: 18px; height: 18px; fill: var(--text2); }
+.tabs { display: flex; border-top: 1px solid var(--border); padding: 6px 4px 18px; background: color-mix(in srgb, var(--bg) 92%, transparent); flex: 0 0 auto; }
+.tabs button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--text4); font-weight: 500; }
+.tabs svg { width: 22px; height: 22px; fill: currentColor; }
+.tabs button[aria-current="true"] { color: var(--accent); }
+.psheet { position: absolute; inset: 40px 0 0 0; background: var(--bg); border-radius: 22px 22px 40px 40px; z-index: 4; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,.25); animation: rise .2s ease-out; }
+.psheet .nav { justify-content: space-between; }
+.psheet .nav h3 { font-size: 17px; font-family: var(--font-sans); font-weight: 600; text-align: center; }
+.psheet .pview .scard { background: var(--surface); }
+.foot { max-width: 1280px; margin: 18px auto 0; color: var(--text4); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Notebook</h1>
+    <p>The app for you and your partner, now with Links and items shared between you. Each of you has your own private notebook in your own iCloud. Write a note on the Mac and watch it appear on the iPhone. Ask the agent about your journal or finances, or attach a receipt photo or a PDF statement on either device.</p>
+  </div>
+  <nav class="links" aria-label="Prototypes"><a href="app-prototype.html" aria-current="page">Grown-up app</a><a href="kids-prototype.html">Kids app</a><a href="prototype.html">Family controls</a><a href="sharing-prototype.html">Sharing</a><a href="design.html">Design doc</a></nav>
+</header>
+
+<div class="stage">
+  <div class="mac-wrap">
+    <p class="label">Your Mac <span class="synced" id="sync-mac">Synced</span></p>
+    <div class="mac" id="mac"></div>
+  </div>
+  <div class="phone-wrap">
+    <p class="label">Your iPhone <span class="synced" id="sync-phone">Synced</span></p>
+    <div class="phone"><div class="screen" id="screen"></div></div>
+  </div>
+</div>
+<p class="foot">Example data. Agent replies are scripted so the prototype runs offline; the real agent uses your chosen AI provider and reads your actual records.</p>
+
+<script>
+(function () {
+'use strict';
+const I = {
+  gear: '<svg viewBox="0 0 20 20"><path d="M10 6.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM8.6 1h2.8l.5 2.3 1.6.7 2-1.3 2 2-1.3 2 .7 1.6 2.3.5v2.8l-2.3.5-.7 1.6 1.3 2-2 2-2-1.3-1.6.7-.5 2.3H8.6l-.5-2.3-1.6-.7-2 1.3-2-2 1.3-2-.7-1.6L.8 11.4V8.6l2.3-.5.7-1.6-1.3-2 2-2 2 1.3 1.6-.7z"/></svg>',
+  compose: '<svg viewBox="0 0 20 20"><path d="M14.6 2.6l2.8 2.8-8.9 8.9-3.6.8.8-3.6zM3 16h14v2H3z"/></svg>',
+  search: '<svg viewBox="0 0 20 20"><path d="M8.5 2a6.5 6.5 0 0 1 5.2 10.4l4.4 4.4-1.4 1.4-4.4-4.4A6.5 6.5 0 1 1 8.5 2zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>',
+  send: '<svg viewBox="0 0 20 20"><path d="M10 2l7 7-1.4 1.4L11 5.8V18H9V5.8L4.4 10.4 3 9z"/></svg>',
+  clip: '<svg viewBox="0 0 20 20"><path d="M13.5 4.5a2.5 2.5 0 0 0-3.5 0L4.6 9.9a4 4 0 0 0 5.6 5.7l5.2-5.2 1.1 1.1-5.2 5.2a5.5 5.5 0 0 1-7.8-7.8L8.9 3.4a4 4 0 0 1 5.7 5.7l-5.4 5.4a2.5 2.5 0 0 1-3.5-3.5L10.8 6l1.1 1-5.1 5.1a1 1 0 0 0 1.4 1.4l5.3-5.4a2.5 2.5 0 0 0 0-3.6z"/></svg>',
+  camera: '<svg viewBox="0 0 20 20"><path d="M7 3h6l1.5 2H17a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>',
+  photos: '<svg viewBox="0 0 20 20"><path d="M3 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 9.5V14h12v-2l-3-3-4 4-2-2zM7 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+  file: '<svg viewBox="0 0 20 20"><path d="M5 2h7l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.5V7h3.5zM7 10v1.5h6V10zm0 3v1.5h6V13z"/></svg>',
+  tab: {
+    notes: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 7v2h8v-2zm0 4v2h8v-2zm0-8v2h5V6z"/></svg>',
+    journal: '<svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5zm3 4v2h7V7zm0 4v2h7v-2zM3 6h1v2H3zm0 5h1v2H3zm0 5h1v2H3z"/></svg>',
+    finance: '<svg viewBox="0 0 24 24"><path d="M3 19h18v2H3zM5 11h3v6H5zm5.5-4h3v10h-3zM16 3h3v14h-3z"/></svg>',
+    links: '<svg viewBox="0 0 24 24"><path d="M10.6 13.4a4 4 0 0 1 0-5.7l3-3a4 4 0 0 1 5.7 5.7l-1.6 1.6-1.4-1.4 1.6-1.6a2 2 0 0 0-2.9-2.9l-3 3a2 2 0 0 0 0 2.9zm2.8-2.8a4 4 0 0 1 0 5.7l-3 3a4 4 0 0 1-5.7-5.7l1.6-1.6 1.4 1.4-1.6 1.6a2 2 0 0 0 2.9 2.9l3-3a2 2 0 0 0 0-2.9z"/></svg>',
+    agent: '<svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zm6 12l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></svg>'
+  }
+};
+const APPS = [['notes', 'Notes', 'var(--hue-notes)'], ['journal', 'Journal', 'var(--hue-journal)'], ['links', 'Links', 'var(--hue-links)'], ['finance', 'Finance', 'var(--hue-finance)'], ['agent', 'Agent', 'var(--hue-agent)']];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const usd = n => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const RECEIPT = "TRADER JOE'S #142\n10/19/26  11:42\n\nBANANAS         1.29\nOAT MILK        3.49\nSOURDOUGH       4.99\nSALMON FILLET  14.98\nSPINACH         2.49\nYOGURT 4PK      5.29\nPASTA           1.99\nTOMATOES        3.79\nCOFFEE          7.88\n\nTOTAL          46.18\nVISA ****4421";
+
+const S = {
+  mac: { app: 'notes', note: 'n1', entry: 'j1', coll: 'c1', settings: false },
+  phone: { tab: 'notes', open: null, settings: false, menu: false },
+  notes: [
+    { id: 'n1', t: 'Weekend plan', b: 'Saturday: farmers market, then soccer at 10.\nSunday: finish staining the deck. Call Mom.', tags: ['home'], pin: true, when: 'Today', sharedWith: 'Partner' },
+    { id: 'n2', t: 'Family controls for Notebook', b: 'Phase 1: rules and question checks.\nPhase 2: Family editor on Mac and iPhone.\nPhase 3: delivery and enrollment.', tags: ['project'], pin: false, when: 'Yesterday' },
+    { id: 'n3', t: 'Book list', b: 'The Overstory\nPiranesi\nKlara and the Sun\nTomorrow, and Tomorrow, and Tomorrow', tags: ['reading'], pin: false, when: 'Oct 12' },
+    { id: 's1', t: 'Kids’ dentist dates', b: 'Sam: Nov 4, 3:30 PM\nAlex: Nov 11, 4:00 PM', tags: [], pin: false, when: 'Yesterday', from: 'Partner', perm: 'view' }
+  ],
+  collections: [
+    { id: 'c1', name: 'Reading list', sharedWith: null, links: [['https://www.quantamagazine.org/the-math-of-shuffling', 'The surprising math of shuffling cards', 'You'], ['https://www.theatlantic.com/family/', 'How kids learn to love reading', 'You']] },
+    { id: 'c2', name: 'Kids’ science videos', sharedWith: 'Partner', links: [['https://www.youtube.com/@veritasium', 'Veritasium', 'You'], ['https://www.nasa.gov/learning-resources/', 'NASA learning resources', 'Partner']] },
+    { id: 'c3', name: 'Recipes', from: 'Partner', perm: 'edit', links: [['https://cooking.nytimes.com/recipes/1017518', 'Weeknight dal', 'Partner'], ['https://www.seriouseats.com/sheet-pan-gnocchi', 'Sheet-pan gnocchi', 'Partner']] }
+  ],
+  sharedAccounts: [{ name: 'Roth IRA', type: 'Retirement', from: 'Partner', balance: 38000, holdings: [['VTSAX', '312 shares', 38000]] }],
+  journal: [
+    { id: 'j1', d: 'Sunday, October 19', mood: 'Good', b: 'Long walk by the lake this morning. The kids raced each other to the bench. Felt calm for the first time in a busy week.' },
+    { id: 'j2', d: 'Thursday, October 16', mood: 'Okay', b: 'Heavy day at work. Skipped the gym again. I want to protect the mornings better.' },
+    { id: 'j3', d: 'Monday, October 13', mood: 'Great', b: 'Sam read a whole chapter book on his own. Alex asked great questions about Rome at dinner.' }
+  ],
+  accounts: [['Brokerage', 48210], ['401(k)', 132400], ['Checking', 8450], ['Savings', 22100]],
+  property: [['Home', 540000]], debts: [['Mortgage', -312000]],
+  spend: [['Groceries', 612], ['Utilities', 230], ['Dining out', 284], ['Kids', 190], ['Transport', 145]],
+  chat: [], pending: [], macPending: [], allowEdits: true, typing: false
+};
+const domainOf = url => url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+const favColor = d => ['#0891b2', '#7c3aed', '#d97706', '#16a34a', '#db2777', '#2563eb'][[...d].reduce((a, c) => a + c.charCodeAt(0), 0) % 6];
+const sharedLine = x => x.from ? `<span class="sharedline"><i class="av">P</i>Shared by ${esc(x.from)} · <span class="badge ${x.perm === 'view' ? 'view' : 'edit'}">${x.perm === 'view' ? 'View only' : 'Can edit'}</span></span>` : x.sharedWith ? `<span class="sharedline"><i class="av">P</i>Shared with ${esc(x.sharedWith)}</span>` : '<span class="sharedline">Only you</span>';
+const shareBtn = x => x.from ? '' : `<a class="btn" href="sharing-prototype.html" title="Opens the sharing prototype">${x.sharedWith ? 'Shared…' : 'Share…'}</a>`;
+const linkCard = ([url, title, by]) => { const d = domainOf(url); return `<div class="lk"><span class="fav" style="background:${favColor(d)}">${esc(d[0].toUpperCase())}</span><span class="txt"><b>${esc(title)}</b><span>${esc(d)}</span><small>Saved by ${esc(by)}</small></span></div>`; };
+function addLink(coll, value, by) {
+  const url = /^https?:\/\//.test(value) ? value : 'https://' + value, d = domainOf(url);
+  coll.links.unshift([url, d.split('.')[0].replace(/^./, c => c.toUpperCase()) + ' · title fetched on this device', by]);
+}
+const sharedAccountsHTML = () => S.sharedAccounts.length ? `<div class="panel"><h3>Shared accounts <small>View only · not in your net worth</small></h3>${S.sharedAccounts.map(a => `<div class="prow"><span style="display:flex;gap:6px;align-items:center"><i class="av">P</i>${esc(a.from)}’s ${esc(a.name)} <span class="badge view">View only</span></span><span>${usd(a.balance)}</span></div>${a.holdings.map(([t, q, v]) => `<div class="hold"><b>${esc(t)}</b><span>${esc(q)}</span><span>${usd(v)}</span></div>`).join('')}`).join('')}</div>` : '';
+const net = () => [...S.accounts, ...S.property, ...S.debts].reduce((a, [, v]) => a + v, 0);
+const spent = () => S.spend.reduce((a, [, v]) => a + v, 0);
+let flashTimer;
+function synced(from) {
+  const el = document.getElementById(from === 'mac' ? 'sync-phone' : 'sync-mac');
+  el.classList.add('on'); clearTimeout(flashTimer); flashTimer = setTimeout(() => el.classList.remove('on'), 1400);
+}
+
+/* ---------- Mac ---------- */
+const mac = document.getElementById('mac');
+function renderMac(keepFocus) {
+  if (keepFocus) return;
+  const a = S.mac.app;
+  let body = '';
+  if (a === 'notes' || a === 'journal') {
+    const rows = a === 'notes' ? S.notes.filter(n => !n.from).sort((x, y) => y.pin - x.pin) : S.journal, shared = a === 'notes' ? S.notes.filter(n => n.from) : [];
+    const cur = a === 'notes' ? S.notes.find(n => n.id === S.mac.note) : S.journal.find(j => j.id === S.mac.entry);
+    const item = r => `<button class="item" data-pick="${r.id}" aria-current="${cur && cur.id === r.id}"><b class="row1">${a === 'notes' && r.pin ? '<span class="pin">●</span>' : ''}${esc(a === 'notes' ? (r.t || 'Untitled') : r.d)}${r.from || r.sharedWith ? '<i class="av">P</i>' : ''}</b><span>${esc(a === 'notes' ? r.when + ' · ' + r.b.split('\n')[0] : r.mood + ' · ' + r.b)}</span></button>`;
+    body = `<div class="mbody"><div class="list"><div class="list-head"><b>${a === 'notes' ? 'Notes' : 'Journal'}</b><button class="newbtn" data-act="new">${a === 'notes' ? 'New note' : 'New entry'}</button></div>
+      ${rows.map(item).join('')}${shared.length ? `<div class="sec">Shared with you</div>${shared.map(item).join('')}` : ''}</div>
+      <div class="editor">${cur ? (a === 'notes'
+        ? `<div class="ehead">${sharedLine(cur)}${shareBtn(cur)}</div><input class="title" id="m-title" value="${esc(cur.t)}" placeholder="Untitled" aria-label="Title"${cur.perm === 'view' ? ' readonly' : ''}><div class="meta">${cur.tags.map(t => `<span class="tagc">${esc(t)}</span>`).join('')}<span>Edited ${esc(cur.when.toLowerCase())}</span></div><textarea id="m-body" aria-label="Note"${cur.perm === 'view' ? ' readonly' : ''}>${esc(cur.b)}</textarea>`
+        : `<input class="title" value="${esc(cur.d)}" readonly aria-label="Date"><div class="meta"><select class="moodsel" id="m-mood" aria-label="Mood">${['Great','Good','Okay','Low','Hard day'].map(m => `<option${m === cur.mood ? ' selected' : ''}>${m}</option>`).join('')}</select><span>Private to you · journals are never shared</span></div><textarea id="m-body" aria-label="Entry">${esc(cur.b)}</textarea>`) : ''}</div></div>`;
+  } else if (a === 'links') {
+    const mine = S.collections.filter(c => !c.from), shared = S.collections.filter(c => c.from), cur = S.collections.find(c => c.id === S.mac.coll);
+    const item = c => `<button class="item" data-coll="${c.id}" aria-current="${c.id === S.mac.coll}"><b class="row1">${esc(c.name)}${c.from || c.sharedWith ? '<i class="av">P</i>' : ''}</b><span>${c.links.length} link${c.links.length === 1 ? '' : 's'}</span></button>`;
+    body = `<div class="mbody"><div class="list"><div class="list-head"><b>Links</b><button class="newbtn">New collection</button></div>${mine.map(item).join('')}<div class="sec">Shared with you</div>${shared.map(item).join('')}</div>
+      <div class="editor"><div class="ehead">${sharedLine(cur)}${shareBtn(cur)}</div><input class="title" value="${esc(cur.name)}" readonly aria-label="Collection">
+        ${cur.perm !== 'view' ? `<form class="addlink" data-form="m-link"><input id="m-link" placeholder="Paste a link, or drop one onto the window" aria-label="Add a link"><button class="btn primary">Add</button></form>` : ''}
+        ${cur.links.map(linkCard).join('')}</div></div>`;
+  } else if (a === 'finance') {
+    const max = Math.max(...S.spend.map(([, v]) => v));
+    body = `<div class="mbody single"><div class="fin"><h2>Your money, together.</h2>
+      <div class="tiles"><div class="tile"><small>Net worth</small><b>${usd(net())}</b><span class="d">+$4,180 this month</span></div><div class="tile"><small>Investments</small><b>${usd(S.accounts[0][1] + S.accounts[1][1])}</b><span class="d">+1.8% this month</span></div><div class="tile"><small>Spent in October</small><b>${usd(spent())}</b><span class="d" style="color:var(--text3)">Budget $2,000</span></div></div>
+      <div class="two"><div class="panel"><h3>Spending by category <small>October</small></h3><div class="cats">${S.spend.map(([n, v]) => `<div class="cat"><span>${n}</span><span class="bar"><i style="width:${v / max * 100}%"></i></span><b>${usd(v)}</b></div>`).join('')}</div></div>
+      <div class="panel"><h3>Accounts <small>Prices delayed</small></h3>${[...S.accounts, ...S.property, ...S.debts].map(([n, v]) => `<div class="prow"><span>${n}</span><span class="${v < 0 ? 'neg' : ''}">${usd(v)}</span></div>`).join('')}</div></div>${sharedAccountsHTML()}</div></div>`;
+  } else {
+    body = `<div class="mbody single"><div class="chatpane"><div class="msgs" id="m-msgs">${chatHTML()}</div>
+      <div class="composer">${S.mac.menu ? `<div class="menu" role="menu"><button data-mattach="photo" role="menuitem">Choose Photo… ${I.photos}</button><button data-mattach="file" role="menuitem">Choose File… ${I.file}</button></div>` : ''}<div class="cbox">${S.macPending.length ? `<div class="pend">${S.macPending.map((f, i) => `<div class="pchip">${fileHTML(f, true)}<button class="x" data-munpend="${i}" aria-label="Remove">×</button></div>`).join('')}</div>` : ''}<textarea id="m-ask" placeholder="Ask, explore, or get something done…" aria-label="Message"></textarea>
+        <div class="crow"><button class="attachb" data-act="m-attach" aria-label="Attach photos or files"${S.macPending.length >= 5 ? ' disabled' : ''}>${I.clip}Attach</button><label class="toggle"><input type="checkbox" id="m-edits" data-act="edits"${S.allowEdits ? ' checked' : ''}>Allow edits</label><span class="sp"></span><button class="sendb" data-act="m-send" aria-label="Send"${S.typing ? ' disabled' : ''}>${I.send}</button></div></div>
+        <span class="cfoot">claude-sonnet-4-6 · Chats sync with iCloud · Drop or paste photos, PDFs and text files</span></div></div></div>`;
+  }
+  mac.innerHTML = `<div class="tb"><div class="lights"><i></i><i></i><i></i></div>
+    <div class="switcher" role="tablist" aria-label="Apps">${APPS.map(([id, l, c]) => `<button data-app="${id}" aria-pressed="${a === id}"><i style="background:${c}"></i>${l}</button>`).join('')}</div>
+    <button class="tbtn" aria-label="Search">${I.search}</button><button class="tbtn" data-act="m-settings" aria-label="Settings">${I.gear}</button></div>${body}`;
+  const msgs = document.getElementById('m-msgs'); if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  document.querySelector('.mac-wrap .sheet-back')?.remove();
+  if (S.mac.settings) {
+    const back = document.createElement('div'); back.className = 'sheet-back';
+    back.innerHTML = `<div class="sheet" role="dialog" aria-label="Settings"><h2>Settings</h2>${settingsHTML()}<div style="display:flex;justify-content:flex-end"><button class="btn primary" data-act="close-settings">Done</button></div></div>`;
+    back.addEventListener('click', e => { if (e.target === back || e.target.closest('[data-act="close-settings"]')) { S.mac.settings = false; renderMac(); } });
+    document.querySelector('.mac-wrap').appendChild(back);
+  }
+}
+function settingsHTML() {
+  return `<div class="sgroup"><h4>iCloud</h4><div class="scard"><div class="srow"><span>Sync</span><small>Up to date · 1 minute ago</small></div><div class="srow"><span>Devices</span><small>This Mac, Ram's iPhone</small></div></div></div>
+    <div class="sgroup"><h4>AI agent</h4><div class="scard"><div class="srow"><span>Provider</span><small>Anthropic · claude-sonnet-4-6</small></div><div class="srow"><span>API key</span><small>Saved on this device</small></div><div class="srow"><span>Live text</span><small>On</small></div></div></div>
+    <div class="sgroup"><h4>Privacy</h4><div class="scard"><div class="srow"><span>Require Touch ID or Face ID</span><small>On</small></div></div></div>
+    <div class="sgroup"><h4>Sharing</h4><div class="scard">
+      <div class="srow"><span>Shared by you</span><small>Weekend plan, Kids’ science videos · with Partner</small></div>
+      <div class="srow"><span>Shared with you</span><small>Kids’ dentist dates, Recipes, Roth IRA (view only) · from Partner</small></div>
+      <div class="srow"><a href="sharing-prototype.html">See how sharing works</a></div></div></div>
+    <div class="sgroup"><h4>Family</h4><div class="scard">
+      <div class="srow"><span><i class="av" style="background:#f2683c">S</i>Sam, 9</span><small>Managed by you</small></div>
+      <div class="srow"><span><i class="av" style="background:#11a08c">A</i>Alex, 13</span><small>Managed by you</small></div>
+      <div class="srow"><span><i class="av" style="background:#8e8e93">P</i>Partner</span><small>Independent · private</small></div>
+      <div class="srow"><a href="prototype.html">Open Family settings</a></div></div></div>`;
+}
+mac.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.app) { S.mac.app = b.dataset.app; renderMac(); return; }
+  if (b.dataset.pick) { if (S.mac.app === 'notes') S.mac.note = b.dataset.pick; else S.mac.entry = b.dataset.pick; renderMac(); return; }
+  if (b.dataset.coll) { S.mac.coll = b.dataset.coll; renderMac(); return; }
+  if (b.dataset.q) { send(b.dataset.q, [], 'mac'); return; }
+  if (b.dataset.mattach) { S.macPending.push(b.dataset.mattach === 'file' ? { kind: 'file', name: 'September statement.pdf' } : { kind: 'photo', name: 'Receipt.jpg' }); S.mac.menu = false; renderMac(); return; }
+  if (b.dataset.munpend) { S.macPending.splice(+b.dataset.munpend, 1); renderMac(); return; }
+  switch (b.dataset.act) {
+    case 'new':
+      if (S.mac.app === 'notes') { const n = { id: 'n' + Date.now(), t: '', b: '', tags: [], pin: false, when: 'Just now' }; S.notes.unshift(n); S.mac.note = n.id; }
+      else { const j = { id: 'j' + Date.now(), d: 'Sunday, October 19', mood: 'Good', b: '' }; S.journal.unshift(j); S.mac.entry = j.id; }
+      renderMac(); renderPhone(); synced('mac'); document.getElementById(S.mac.app === 'notes' ? 'm-title' : 'm-body')?.focus(); break;
+    case 'm-send': { const t = document.getElementById('m-ask').value.trim(); if (t || S.macPending.length) send(t, S.macPending.splice(0), 'mac'); break; }
+    case 'm-attach': S.mac.menu = !S.mac.menu; renderMac(); break;
+    case 'm-settings': S.mac.settings = true; renderMac(); break;
+  }
+});
+mac.addEventListener('change', e => {
+  if (e.target.id === 'm-edits') { S.allowEdits = e.target.checked; renderPhone(); }
+  if (e.target.id === 'm-mood') { S.journal.find(j => j.id === S.mac.entry).mood = e.target.value; renderMac(); renderPhone(); synced('mac'); }
+});
+mac.addEventListener('input', e => {
+  if (e.target.id === 'm-title' || e.target.id === 'm-body') {
+    if (S.mac.app === 'notes') { const n = S.notes.find(x => x.id === S.mac.note); n[e.target.id === 'm-title' ? 't' : 'b'] = e.target.value; n.when = 'Just now'; }
+    else S.journal.find(j => j.id === S.mac.entry).b = e.target.value;
+    renderPhone(); synced('mac');
+    const item = mac.querySelector(`[data-pick="${S.mac.app === 'notes' ? S.mac.note : S.mac.entry}"]`);
+    if (item && S.mac.app === 'notes') { const n = S.notes.find(x => x.id === S.mac.note); item.querySelector('b').innerHTML = (n.pin ? '<span class="pin">●</span>' : '') + esc(n.t || 'Untitled'); item.querySelector('span').textContent = n.when + ' · ' + n.b.split('\n')[0]; }
+  }
+});
+mac.addEventListener('submit', e => {
+  e.preventDefault(); const v = document.getElementById('m-link')?.value.trim(); if (!v) return;
+  addLink(S.collections.find(c => c.id === S.mac.coll), v, 'You'); renderMac(); renderPhone(); synced('mac');
+});
+mac.addEventListener('keydown', e => { if (e.target.id === 'm-ask' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const t = e.target.value.trim(); if (t || S.macPending.length) send(t, S.macPending.splice(0), 'mac'); } });
+
+/* ---------- agent (scripted) ---------- */
+const fileHTML = (f, small) => f.kind === 'photo' ? `<div class="receipt${small ? ' sm' : ''}" role="img" aria-label="Photo of a grocery receipt">${esc(RECEIPT)}</div>` : `<span class="fchip">${I.file}${esc(f.name)}</span>`;
+function chatHTML() {
+  if (!S.chat.length && !S.typing) return `<div class="welcome"><h2>A little help.<br>A lot of possibility.</h2><p>Find connections and get things done across your notes, journal and finances.</p><div class="sugs">${[['Turn reflection into a note', 'Journal → Notes', 'Read my recent journal entries and summarize recurring themes. Save the summary as a note.'], ['See where the money goes', 'Finance', 'Review this month’s spending and explain what stands out.'], ['Find a way forward', 'Notes', 'Find my notes about unfinished projects and help me make an action plan.']].map(([t, s, q]) => `<button class="sug" data-q="${esc(q)}">${t}<span>${s}</span></button>`).join('')}</div></div>`;
+  return S.chat.map(m => m.role === 'user'
+    ? `<div class="m user"><span class="who">You${m.from === 'phone' ? ' · from iPhone' : ''}</span>${m.files.length ? `<div class="files">${m.files.map(f => fileHTML(f)).join('')}</div>` : ''}${m.text ? `<span>${esc(m.text)}</span>` : ''}</div>`
+    : `<div class="m ai"><span class="who">Notebook</span>${m.acts.map(a => `<span class="act">${esc(a)}</span>`).join('')}${m.html}</div>`).join('') + (S.typing ? '<div class="typing"><i></i><i></i><i></i></div>' : '');
+}
+function answer(text, files) {
+  const q = text.toLowerCase(), acts = [];
+  if (files.some(f => f.kind === 'photo')) {
+    if (S.allowEdits) {
+      acts.push('Read photo · grocery receipt', 'Created spending transaction · Trader Joe’s · $46.18');
+      S.spend[0][1] += 46; return { acts, html: '<p>That’s a Trader Joe’s receipt from today for <b>$46.18</b>, paid with the Visa ending 4421. I added it to Groceries. October groceries are now ' + usd(S.spend[0][1]) + '.</p>' };
+    }
+    acts.push('Read photo · grocery receipt'); return { acts, html: '<p>That’s a Trader Joe’s receipt from today for <b>$46.18</b>. Turn on Allow edits and I can add it to your Groceries spending.</p>' };
+  }
+  if (files.some(f => f.kind === 'file')) { acts.push('Read PDF · ' + files.find(f => f.kind === 'file').name); return { acts, html: '<p>Your statement shows 42 transactions in September. The largest were the mortgage payment ($2,140), the electric bill ($118) and a $96 charge at REI. Nothing looks unusual.</p>' }; }
+  if (/journal|reflect|theme/.test(q)) {
+    acts.push('Searched journal · 3 entries');
+    if (S.allowEdits && /save|note/.test(q)) {
+      const n = { id: 'n' + Date.now(), t: 'Journal themes, October', b: 'Mornings matter: calm walks help, skipped gym hurts.\nFamily moments with Sam and Alex stand out.\nWork weeks feel heavy by Thursday.', tags: ['journal'], pin: false, when: 'Just now' };
+      S.notes.unshift(n); acts.push('Created note · Journal themes, October');
+    }
+    return { acts, html: '<p>Three themes come up in your recent entries:</p><ul><li><b>Mornings set the tone.</b> The lake walk felt calm. Skipping the gym left you wanting to protect mornings.</li><li><b>Time with the kids.</b> Sam’s reading and Alex’s questions are the brightest moments.</li><li><b>Midweek strain.</b> Thursdays feel heavy at work.</li></ul>' + (S.allowEdits && /save|note/.test(q) ? '<p>I saved this as a note called “Journal themes, October”.</p>' : '') };
+  }
+  if (/spend|money|finance|budget/.test(q)) { acts.push('Calculated finance summary · October'); return { acts, html: `<p>You’ve spent <b>${usd(spent())}</b> so far in October, under your $2,000 budget.</p><ul><li><b>Groceries</b> are the biggest category at ${usd(S.spend[0][1])}.</li><li><b>Dining out</b> at ${usd(S.spend[2][1])} is up about 30% on September.</li><li>Net worth is ${usd(net())}. Brokerage prices are delayed, so that figure uses yesterday’s close.</li></ul>` }; }
+  if (/link|saved|recipe/.test(q)) { acts.push('Searched links · 2 matches'); return { acts, html: '<p>In <b>Recipes</b>, shared by Partner, you have <b>Weeknight dal</b> (cooking.nytimes.com) and <b>Sheet-pan gnocchi</b> (seriouseats.com). Both work for a weeknight.</p>' }; }
+  if (/project|plan|unfinished/.test(q)) { acts.push('Searched notes · 2 matches'); return { acts, html: '<p>Two notes look unfinished: <b>Family controls for Notebook</b> and <b>Weekend plan</b>. A plan:</p><ul><li>This week: start Phase 1, the rules and question checks.</li><li>Saturday: farmers market and soccer. Sunday: stain the deck.</li></ul>' }; }
+  return { acts, html: '<p>Here the real agent would search your notes, journal and finances, and the web if needed, to answer.</p>' };
+}
+function send(text, files, from) {
+  if (S.typing) return;
+  S.chat.push({ role: 'user', text, files, from }); S.typing = true; if (from === 'phone') S.pending = []; S.phone.menu = false; S.mac.menu = false;
+  renderMac(); renderPhone(); synced(from);
+  setTimeout(() => { const a = answer(text, files); S.chat.push({ role: 'ai', ...a }); S.typing = false; renderMac(); renderPhone(); synced(from); }, 1200);
+}
+
+/* ---------- iPhone ---------- */
+const screen = document.getElementById('screen');
+function renderPhone() {
+  const P = S.phone, t = P.tab;
+  if (document.activeElement && screen.contains(document.activeElement) && /^p-(title|body)$/.test(document.activeElement.id)) return;
+  let nav = '', view = '';
+  if ((t === 'notes' || t === 'journal') && P.open) {
+    const r = t === 'notes' ? S.notes.find(n => n.id === P.open) : S.journal.find(j => j.id === P.open);
+    nav = `<div class="nav"><button class="back" data-act="back">‹ ${t === 'notes' ? 'Notes' : 'Journal'}</button></div>`;
+    view = `<div class="pview"><div class="pedit">${t === 'notes' ? `${sharedLine(r)}<input id="p-title" value="${esc(r.t)}" placeholder="Untitled" aria-label="Title"${r.perm === 'view' ? ' readonly' : ''}>` : `<b style="font-family:var(--font-serif);font-weight:400;font-size:22px">${esc(r.d)}</b><span style="color:var(--text3)">${esc(r.mood)}</span>`}<textarea id="p-body" aria-label="Text"${r.perm === 'view' ? ' readonly' : ''}>${esc(r.b)}</textarea></div></div>`;
+  } else if (t === 'links' && P.open) {
+    const c = S.collections.find(x => x.id === P.open);
+    nav = `<div class="nav"><button class="back" data-act="back">‹ Links</button></div>`;
+    view = `<div class="pview"><b style="font-family:var(--font-serif);font-weight:400;font-size:24px">${esc(c.name)}</b>${sharedLine(c)}${c.perm !== 'view' ? `<form class="addlink" data-form="p-link"><input id="p-link" placeholder="Paste a link" aria-label="Add a link"><button class="btn primary">Add</button></form>` : ''}${c.links.map(linkCard).join('')}</div>`;
+  } else if (t === 'links') {
+    nav = `<div class="nav"><h3>Links</h3><button class="ibtn" data-act="p-settings" aria-label="Settings">${I.gear}</button></div>`;
+    const card = c => `<button class="pcard" data-open="${c.id}"><b>${esc(c.name)}</b><span>${c.links.length} links${c.from ? ' · from ' + esc(c.from) : c.sharedWith ? ' · shared with ' + esc(c.sharedWith) : ''}</span></button>`;
+    view = `<div class="pview">${S.collections.filter(c => !c.from).map(card).join('')}<div class="psec">Shared with you</div>${S.collections.filter(c => c.from).map(card).join('')}</div>`;
+  } else if (t === 'notes' || t === 'journal') {
+    const rows = t === 'notes' ? S.notes.filter(n => !n.from).sort((x, y) => y.pin - x.pin) : S.journal, shared = t === 'notes' ? S.notes.filter(n => n.from) : [];
+    nav = `<div class="nav"><h3>${t === 'notes' ? 'Notes' : 'Journal'}</h3><button class="ibtn" data-act="p-settings" aria-label="Settings">${I.gear}</button><button class="ibtn" data-act="p-new" aria-label="New">${I.compose}</button></div>`;
+    const card = r => `<button class="pcard" data-open="${r.id}"><b>${esc(t === 'notes' ? (r.t || 'Untitled') : r.d)}</b><span>${esc(t === 'notes' ? r.b.split('\n')[0] : r.mood + ' · ' + r.b)}</span>${t === 'notes' ? `<span class="tiny">${esc(r.when)}${r.tags.length ? ' · ' + r.tags.join(', ') : ''}${r.from ? ' · from ' + esc(r.from) : r.sharedWith ? ' · shared with ' + esc(r.sharedWith) : ''}</span>` : ''}</button>`;
+    view = `<div class="pview">${rows.map(card).join('')}${shared.length ? `<div class="psec">Shared with you</div>${shared.map(card).join('')}` : ''}</div>`;
+  } else if (t === 'finance') {
+    nav = `<div class="nav"><h3>Finance</h3><button class="ibtn" data-act="p-settings" aria-label="Settings">${I.gear}</button></div>`;
+    const max = Math.max(...S.spend.map(([, v]) => v));
+    view = `<div class="pview"><div class="pbig"><small>Net worth</small><b>${usd(net())}</b><small style="color:var(--green)">+$4,180 this month</small></div>
+      <div class="panel"><h3>October spending <small>${usd(spent())}</small></h3><div class="cats">${S.spend.map(([n, v]) => `<div class="cat"><span>${n}</span><span class="bar"><i style="width:${v / max * 100}%"></i></span><b>${usd(v)}</b></div>`).join('')}</div></div>
+      <div class="panel"><h3>Accounts</h3>${S.accounts.map(([n, v]) => `<div class="prow"><span>${n}</span><span>${usd(v)}</span></div>`).join('')}</div>${sharedAccountsHTML()}</div>`;
+  } else {
+    nav = `<div class="nav"><h3>Agent</h3><button class="ibtn" data-act="p-settings" aria-label="Settings">${I.gear}</button></div>`;
+    view = `<div class="pchat" id="p-chat">${chatHTML().replace(/class="sugs"/, 'class="sugs" style="max-width:none"')}</div>
+      <div class="pcomp">${P.menu ? `<div class="menu" role="menu"><button data-attach="camera" role="menuitem">Take Photo ${I.camera}</button><button data-attach="library" role="menuitem">Photo Library ${I.photos}</button><button data-attach="file" role="menuitem">Choose File ${I.file}</button></div>` : ''}
+        <div class="cbox">${S.pending.length ? `<div class="pend">${S.pending.map((f, i) => `<div class="pchip">${fileHTML(f, true)}<button class="x" data-unpend="${i}" aria-label="Remove">×</button></div>`).join('')}</div>` : ''}
+          <textarea id="p-ask" placeholder="Ask, explore, or get something done…" aria-label="Message" rows="1"></textarea>
+          <div class="crow"><button class="clip" data-act="p-menu" aria-label="Add photo or file"${S.pending.length >= 5 ? ' disabled' : ''}>${I.clip}</button><label class="toggle"><input type="checkbox" id="p-edits"${S.allowEdits ? ' checked' : ''}>Allow edits</label><span class="sp"></span><button class="sendb" data-act="p-send" aria-label="Send"${S.typing ? ' disabled' : ''}>${I.send}</button></div></div></div>`;
+  }
+  const tabs = `<nav class="tabs" aria-label="Apps">${APPS.map(([id, l]) => `<button data-tab="${id}" aria-current="${t === id}">${I.tab[id]}${l}</button>`).join('')}</nav>`;
+  const sheet = P.settings ? `<div class="psheet" role="dialog" aria-label="Settings"><div class="nav"><span style="width:50px"></span><h3>Settings</h3><button class="back" style="flex:0;font-weight:600" data-act="p-close">Done</button></div><div class="pview">${settingsHTML()}</div></div>` : '';
+  screen.innerHTML = `<div class="island"></div><div class="sbar"><span>9:41</span><span>5G ▮</span></div>${nav}${view}${tabs}${sheet}`;
+  const chat = document.getElementById('p-chat'); if (chat) chat.scrollTop = chat.scrollHeight;
+}
+screen.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const P = S.phone;
+  if (b.dataset.tab) { P.tab = b.dataset.tab; P.open = null; P.menu = false; }
+  else if (b.dataset.open) P.open = b.dataset.open;
+  else if (b.dataset.q) { send(b.dataset.q, [], 'phone'); return; }
+  else if (b.dataset.attach) { S.pending.push(b.dataset.attach === 'file' ? { kind: 'file', name: 'September statement.pdf' } : { kind: 'photo', name: 'Receipt.jpg' }); P.menu = false; }
+  else if (b.dataset.unpend) S.pending.splice(+b.dataset.unpend, 1);
+  else switch (b.dataset.act) {
+    case 'back': P.open = null; break;
+    case 'p-new':
+      if (P.tab === 'notes') { const n = { id: 'n' + Date.now(), t: '', b: '', tags: [], pin: false, when: 'Just now' }; S.notes.unshift(n); P.open = n.id; }
+      else { const j = { id: 'j' + Date.now(), d: 'Sunday, October 19', mood: 'Good', b: '' }; S.journal.unshift(j); P.open = j.id; }
+      renderMac(); synced('phone'); break;
+    case 'p-menu': P.menu = !P.menu; break;
+    case 'p-send': { const t = document.getElementById('p-ask').value.trim(); if (t || S.pending.length) send(t, S.pending.slice(), 'phone'); return; }
+    case 'p-settings': P.settings = true; break;
+    case 'p-close': P.settings = false; break;
+    default: return;
+  }
+  renderPhone();
+});
+screen.addEventListener('submit', e => {
+  e.preventDefault(); const v = document.getElementById('p-link')?.value.trim(); if (!v) return;
+  addLink(S.collections.find(c => c.id === S.phone.open), v, 'You'); renderPhone(); renderMac(); synced('phone');
+});
+screen.addEventListener('change', e => { if (e.target.id === 'p-edits') { S.allowEdits = e.target.checked; renderMac(); } });
+screen.addEventListener('input', e => {
+  const P = S.phone; if (!P.open || !/^p-(title|body)$/.test(e.target.id)) return;
+  if (P.tab === 'notes') { const n = S.notes.find(x => x.id === P.open); n[e.target.id === 'p-title' ? 't' : 'b'] = e.target.value; n.when = 'Just now'; }
+  else S.journal.find(j => j.id === P.open).b = e.target.value;
+  if (!mac.contains(document.activeElement)) renderMac(); synced('phone');
+});
+screen.addEventListener('focusout', e => { if (/^p-(title|body)$/.test(e.target.id)) setTimeout(renderPhone, 0); });
+
+renderMac(); renderPhone();
+})();
+</script>
+</body>
+</html>

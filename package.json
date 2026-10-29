@@ -1,0 +1,23 @@
+{
+  "name": "notebook",
+  "productName": "Notebook",
+  "version": "0.2.3",
+  "description": "Notes, journal, and personal finance on iPhone and Mac.",
+  "private": true,
+  "author": "Ramachandran Bakthavachalam",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build:icon": "swift -module-cache-path /tmp/notebook-icon-modules scripts/build-icon.swift",
+    "test:native": "swift test --package-path native",
+    "build:ios": "xcodebuild -project ios/Notebook.xcodeproj -scheme Notebook -configuration Debug -sdk iphonesimulator -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build",
+    "build:ios:icon": "swift -module-cache-path /tmp/notebook-icon-modules scripts/build-ios-icon.swift build/icon.png ios/Notebook/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+    "test:ios": "xcodebuild -project ios/Notebook.xcodeproj -scheme Notebook -configuration Debug -destination \"platform=iOS Simulator,name=iPhone 17 Pro\" -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test",
+    "build:macos": "xcodebuild -project ios/Notebook.xcodeproj -scheme NotebookMac -configuration Debug -derivedDataPath build/mac CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build",
+    "start:macos": "npm run build:macos && open build/mac/Build/Products/Debug/Notebook.app",
+    "check:swift-speed": "xcodebuild -project ios/Notebook.xcodeproj -scheme NotebookMac -configuration Debug -derivedDataPath build/mac-speed CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -warn-long-expression-type-checking=150 -Xfrontend -warn-long-function-bodies=600' build 2>&1 | grep -E '^/.*took [0-9]+ms to type-check' && echo 'Split these up: older Xcode versions give up on them.' && exit 1 || echo 'No slow Swift expressions.'",
+    "install:macos": "scripts/install-mac.sh",
+    "build:macos:signed": "xcodebuild -project ios/Notebook.xcodeproj -scheme NotebookMac -configuration Debug -derivedDataPath build/mac-signed -allowProvisioningUpdates build",
+    "release:macos": "scripts/release-mac.sh"
+  },
+  "license": "MIT"
+}

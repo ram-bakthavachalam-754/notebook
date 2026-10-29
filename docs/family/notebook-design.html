@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: a design-review document. Sticky contents rail on the left, one 70ch reading column,
+   wide tables and diagrams allowed to scroll inside their own frames. Notebook's serif for headings. */
+:root {
+  --bg: #f6f6f4;
+  --paper: #ffffff;
+  --ink: #1b1b1d;
+  --ink2: #55555b;
+  --ink3: #8d8d94;
+  --line: #e2e2e0;
+  --accent: #0a72f0;
+  --accent-soft: rgba(10,114,240,.10);
+  --ok: #1f9d47;
+  --warn: #b86e00;
+  --stop: #cf3a30;
+  --care: #6f50e8;
+  --code-bg: #f1f1ef;
+  --font-head: Charter, "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 56px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0,1fr); gap: 0; } .toc { display: none; } }
+.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; }
+.toc b { display: block; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; counter-reset: s; }
+.toc li { counter-increment: s; }
+.toc a { color: var(--ink2); text-decoration: none; }
+.toc a::before { content: counter(s) ". "; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.toc a:hover { color: var(--accent); }
+main { max-width: 72ch; min-width: 0; counter-reset: h; }
+
+header.doc { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin: 0 0 8px; }
+h1 { font-family: var(--font-head); font-weight: 400; font-size: clamp(30px, 5vw, 40px); line-height: 1.12; margin: 0 0 12px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { font-size: 17px; color: var(--ink2); margin: 0 0 18px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink2); }
+.meta span b { color: var(--ink); font-weight: 600; }
+.proto { margin-top: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.proto p { margin: 0; flex: 1; min-width: 200px; font-size: 14px; color: var(--ink2); }
+.proto a { font-weight: 600; text-decoration: none; background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 7px; font-size: 14px; white-space: nowrap; }
+
+h2 { font-family: var(--font-head); font-weight: 400; font-size: 26px; line-height: 1.2; margin: 56px 0 12px; counter-increment: h; text-wrap: balance; scroll-margin-top: 20px; }
+h2::before { content: counter(h); font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--accent); display: block; margin-bottom: 4px; letter-spacing: .04em; }
+h3 { font-size: 15.5px; font-weight: 650; margin: 28px 0 6px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 5px; }
+li::marker { color: var(--ink3); }
+strong { font-weight: 650; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 0 0 16px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.k { color: var(--accent); } .c { color: var(--ink3); }
+
+.tbl { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); font-weight: 600; background: color-mix(in srgb, var(--bg) 60%, var(--paper)); white-space: nowrap; }
+td.n { white-space: nowrap; }
+.s { font-size: 11.5px; font-weight: 700; border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+.s-a { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.s-c { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.s-b { color: var(--stop); background: color-mix(in srgb, var(--stop) 12%, transparent); }
+.s-h { color: var(--care); background: color-mix(in srgb, var(--care) 13%, transparent); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 16px; font-size: 14.5px; }
+.callout p:last-child { margin: 0; }
+
+/* diagrams */
+.diagram { overflow-x: auto; margin: 6px 0 20px; }
+.flow { display: flex; align-items: stretch; gap: 0; min-width: 640px; }
+.node { flex: 1; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.node b { font-size: 13.5px; }
+.node span { color: var(--ink2); }
+.node.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.arrow { flex: 0 0 28px; display: grid; place-items: center; color: var(--ink3); font-size: 18px; }
+.branch { display: flex; gap: 8px; margin-top: 8px; min-width: 640px; font-size: 12.5px; color: var(--ink2); }
+.branch div { flex: 1; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 12px; }
+.branch b { color: var(--ink); }
+
+.arch { display: grid; grid-template-columns: 1fr 60px 1fr 60px 1fr; align-items: center; min-width: 680px; }
+.zone { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.zone > b { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); }
+.box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.box small { display: block; color: var(--ink2); }
+.wire { text-align: center; font-size: 11.5px; color: var(--ink2); line-height: 1.3; }
+.wire i { display: block; font-style: normal; font-size: 18px; color: var(--ink3); }
+
+.phases { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
+.phase { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.phase .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: 13px; }
+.phase h4 { margin: 2px 0 4px; font-size: 14.5px; }
+.phase p { margin: 0; font-size: 14px; color: var(--ink2); }
+footer { margin-top: 60px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink3); }
+
+.st { font-size: 11.5px; font-weight: 700; border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+.st-built { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.st-new { color: var(--accent); background: var(--accent-soft); }
+.st-proto { color: var(--care); background: color-mix(in srgb, var(--care) 13%, transparent); }
+.st-plan { color: var(--ink2); background: color-mix(in srgb, var(--ink3) 15%, transparent); }
+.sev { font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.sev-h { color: var(--stop); background: color-mix(in srgb, var(--stop) 12%, transparent); }
+.sev-m { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.sev-l { color: var(--ink2); background: color-mix(in srgb, var(--ink3) 15%, transparent); }
+.stack { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; min-width: 620px; }
+.stack .zone { min-height: 100%; }
+.docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 0 0 16px; }
+.docs a { display: block; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; text-decoration: none; color: var(--ink); }
+.docs a b { display: block; font-size: 14px; margin-bottom: 2px; }
+.docs a span { font-size: 13px; color: var(--ink2); }
+.docs a:hover { border-color: var(--accent); }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+  <li><a href="#summary">Summary</a></li><li><a href="#status">Status at a glance</a></li><li><a href="#people">People and roles</a></li>
+  <li><a href="#apps">The apps</a></li><li><a href="#arch">Architecture today</a></li><li><a href="#changes">What the new features change</a></li>
+  <li><a href="#agent">The agent</a></li><li><a href="#privacy">Who can read what</a></li><li><a href="#review">Design review findings</a></li>
+  <li><a href="#roadmap">Build order</a></li><li><a href="#related">Related documents</a></li>
+</ol></nav>
+<main>
+<header class="doc">
+  <p class="eyebrow">Design document · Draft · Supersedes nothing; ties the others together</p>
+  <h1>Notebook Design</h1>
+  <p class="lede">Notebook is a private, local-first notebook for one household: notes, a journal, personal finance, saved links and an AI agent, on Mac and iPhone. This document reviews how the app is built today and describes every feature we've designed for it: family controls, a kids' version, photo and file attachments, sharing, and the new Links section.</p>
+  <div class="meta"><span><b>Author</b> Ramachandran Bakthavachalam</span><span><b>Date</b> 19 October 2026</span><span><b>Status</b> Proposed</span><span><b>Current version</b> Notebook 0.2.3</span><span><b>Updated</b> 19 October 2026: native Mac app, Documents, Links</span></div>
+  <div class="proto"><p><strong>Prototypes</strong>, all local: the grown-up app, the kids' app, the parent's Family controls, and two people sharing.</p><a href="app-prototype.html">Grown-up app</a><a href="kids-prototype.html">Kids app</a><a href="prototype.html">Family controls</a><a href="sharing-prototype.html">Sharing</a></div>
+</header>
+
+<h2 id="summary">Summary</h2>
+<p>Notebook started as one person's notes and journal. It now has six sections (Notes, Journal, Finance, Links, the Agent and Documents), in a native SwiftUI app on both Mac and iPhone, and is moving from one person to a household:</p>
+<ul>
+  <li><strong>Each adult has their own private notebook</strong> in their own iCloud, end-to-end encrypted, exactly as today.</li>
+  <li><strong>Children get a friendlier Notebook</strong> whose apps and agent are set up by a parent from the parent's own devices. The rules are never shown to the child.</li>
+  <li><strong>The agent is for getting things done</strong> for adults, and for <strong>curiosity</strong> for kids: space, science, history, math and nature, never homework.</li>
+  <li><strong>People can share single items</strong>: notes and links collections that both can edit, and finance accounts the other person can only view.</li>
+</ul>
+<p>The core design stays the same throughout: data lives on each device in SQLite as immutable revisions, syncs through CloudKit as ciphertext, and the same JavaScript logic runs on both platforms.</p>
+
+<h2 id="status">Status at a glance</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Feature</th><th>Status</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Native Mac app (SwiftUI)</td><td><span class="st st-new">Built, testing</span></td><td>Replaces Electron and opens the same database. Simple Notes, Journal, Finance (holdings by account, ticker pages; no spending), Links, Agent and Documents. See <a href="../NATIVE_MAC.md">NATIVE_MAC.md</a>. Markdown files, PDF export, templates and wiki links aren't carried over.</td></tr>
+    <tr><td>Notes, Journal, Finance on Mac and iPhone</td><td><span class="st st-built">Built</span></td><td>Offline-first, rich text, photos. Both apps now share one note editor that never rewrites a note until you edit it.</td></tr>
+    <tr><td>Encrypted iCloud sync and QR pairing</td><td><span class="st st-built">Built</span></td><td>One private zone per notebook; validated on a real iPhone on 12 Oct</td></tr>
+    <tr><td>App lock (Touch ID, password, Face ID)</td><td><span class="st st-built">Built</span></td><td>An access lock, not disk encryption</td></tr>
+    <tr><td>AI agent with tools, streaming and web browsing</td><td><span class="st st-built">Built</span></td><td>OpenAI, Anthropic or a compatible server, with your own key</td></tr>
+    <tr><td>Documents and agent attachments</td><td><span class="st st-built">Built</span></td><td>A Documents section with on-device text recognition and Office files; chat attachments are saved as documents and read with <code>read_document</code>. This replaced the media-record attachments described in earlier drafts.</td></tr>
+    <tr><td>Family controls and kid mode</td><td><span class="st st-new">Built, testing</span></td><td>The parent's Family editor on Mac and iPhone; joining with a QR or paste code; signed, encrypted rules files (Ed25519, AES-GCM); the rules and checks on the child's device. Delivery through iCloud's public database is built but untested (needs signed builds on two Apple Accounts); the signed file can also be carried by hand. Not yet: key rotation and device status rows. See <a href="../KID_MODE.md">KID_MODE.md</a> and the <a href="design.html">family controls design</a>.</td></tr>
+    <tr><td>Kids' app experience and curiosity-first Ask</td><td><span class="st st-new">Built, testing</span></td><td>Ask, note templates, the evening journal reminder, and Money (savings goals and the allowance). Money's "accounts and spending" mode isn't built: spending was removed. <a href="kids-prototype.html">Kids prototype</a></td></tr>
+    <tr><td>Sharing notes, links and finance accounts</td><td><span class="st st-new">Built, testing</span></td><td>Mac and iPhone: share sheet, Shared with You groups, view-only items, account levels, Settings → Sharing, the kids' Sharing setting. Each share has its own zone, local store and key; the notebook's own sync is untouched. Tested locally without iCloud; not yet with two Apple Accounts. Not yet: the agent reading shared items, notifications. <a href="sharing-design.html">Sharing design</a></td></tr>
+    <tr><td>News</td><td><span class="st st-new">Built, testing</span></td><td>Mac and iPhone: followed topics from Google News, Bing News and Hacker News, an in-app reader with summaries by your own model, saved stories that sync (<code>news</code> kind). Brought back from nenva's News app. Adults only.</td></tr>
+    <tr><td>Links section</td><td><span class="st st-new">Built, testing</span></td><td>Mac and iPhone: collections, titles fetched with the safe web reader, notes, tags, agent tools. The iPhone share extension needs an App Group in the signed build (<a href="../NATIVE_MAC.md">NATIVE_MAC.md</a>). Collections can be shared.</td></tr>
+    <tr><td>Unknown record kinds</td><td><span class="st st-built">Built</span></td><td>Finding 1 is fixed: new kinds are kept and sync continues. Every device needs a build from 19 October or later before new kinds (like links) are written.</td></tr>
+    <tr><td>Distribution to family and other users</td><td><span class="st st-plan">Not started</span></td><td>TestFlight, Developer ID signing and notarization, CloudKit Production schema</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="people">People and roles</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Role</th><th>Notebook</th><th>Sets up their own agent</th><th>Can share</th><th>Managed by</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Organizer</strong> (you)</td><td>Own iCloud, private</td><td>Yes</td><td>Notes, links, view-only accounts, with anyone on Notebook</td><td>Nobody</td></tr>
+    <tr><td><strong>Partner</strong></td><td>Own iCloud, private</td><td>Yes</td><td>The same as you</td><td>Nobody. Shown in Family as "Independent".</td></tr>
+    <tr><td><strong>Managed child</strong></td><td>Own iCloud, private</td><td>No. The parent picks the AI connection, rules and apps.</td><td>Notes and links, with family only by default</td><td>The organizer, from the organizer's Mac or iPhone</td></tr>
+    <tr><td><strong>Other Notebook user</strong></td><td>Their own iCloud</td><td>Yes</td><td>Anything shared with them, at the permission given</td><td>Nobody</td></tr>
+  </tbody>
+</table></div>
+<p>Nobody can read another person's notebook. A parent controls a child's <em>settings</em>, never their content: the child's journal, notes and chats stay in the child's iCloud.</p>
+
+<h2 id="apps">The apps</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Section</th><th>For adults</th><th>For kids (if the parent turns it on)</th><th>Sharing</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Notes</strong></td><td>Rich text, tags, pins, photos, templates, Markdown files on the Mac</td><td>Simpler notes, optional photos, kid templates (I wonder, Reading log, Big idea, Checklist)</td><td>Per note, Can edit or View only</td></tr>
+    <tr><td><strong>Journal</strong></td><td>Daily entries with mood and photos</td><td>A daily prompt, mood buttons, an optional evening reminder</td><td>Never. The journal is always private.</td></tr>
+    <tr><td><strong>Finance</strong></td><td>Accounts and investments you track, holdings, spending, strategies, snapshots. Plus <strong>Shared accounts</strong> others share with you, view only.</td><td>"Money": allowance and savings goals, or accounts and spending. No investing, trading or bank links.</td><td>Per account, always view only, at a chosen level (balance, holdings, or transactions)</td></tr>
+    <tr><td><strong>Links</strong> <span class="st st-new">New</span></td><td>Saved web links in collections, with titles fetched on your device</td><td>Optional, e.g. saved science videos</td><td>Per collection, Can edit or View only</td></tr>
+    <tr><td><strong>Agent</strong> / <strong>Ask</strong></td><td>Search, analyze and edit across your notebook, browse the web, read photos and files you attach</td><td>"Ask": curiosity questions with follow-ups, three checks on every question and answer, photos only if allowed</td><td>Not shared. Each person's chats are their own.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="arch">Architecture today</h2>
+<div class="diagram">
+  <div class="stack">
+    <div class="zone"><b>Mac</b>
+      <div class="box">SwiftUI app (new)<small>Native Notes, Journal, Finance, Links, Agent and Documents, Touch ID lock. Replaces the Electron renderer and main process, which still work on the same data.</small></div>
+      <div class="box">JavaScriptCore<small>The same <code>agent-core.js</code> and Finance code as the iPhone.</small></div>
+      <div class="box">NotebookCore (Swift package)<small>Linked in directly: <code>RecordStore</code> and <code>CloudSync</code>, no helper process (this also resolves finding 4 on the native app).</small></div>
+      <div class="box">SQLite<small>Revisions in <code>notebook.sqlite</code>, the same file Electron used. The Markdown projection in <code>~/Notebook</code> is Electron-only.</small></div></div>
+    <div class="zone"><b>iPhone and iPad</b>
+      <div class="box">SwiftUI app<small>Native screens for every section, Face ID lock, camera and Files.</small></div>
+      <div class="box">JavaScriptCore<small>Runs the same <code>agent-core.js</code>, Finance and presentation code as the Mac.</small></div>
+      <div class="box">NotebookCore (Swift package)<small>The same <code>RecordStore</code> and <code>CloudSync</code> code as the Mac helper.</small></div>
+      <div class="box">CloudKit private database<small>One <code>Notebook-&lt;id&gt;</code> zone of encrypted revisions; a pairing zone.</small></div></div>
+  </div>
+</div>
+<h3>Principles worth keeping</h3>
+<ul>
+  <li><strong>Local first.</strong> Everything works offline. iCloud is a transport, never the source of truth.</li>
+  <li><strong>Immutable revisions with parents.</strong> Wall clocks never pick a winner. Concurrent edits to prose keep both versions; Finance resolves deterministically so totals never double count.</li>
+  <li><strong>Encrypt before upload.</strong> CloudKit stores AES-GCM ciphertext. Keys live in each device's keychain and move only through the QR pairing flow.</li>
+  <li><strong>One logic, two platforms.</strong> Validation, agent tools, provider formats and Finance math are shared JavaScript. Only UI, HTTP and storage are platform code.</li>
+  <li><strong>The agent is constrained in code.</strong> Read-only mode, protected fields, revision checks and forbidden keys are enforced by <code>AgentCore.execute</code>, not by instructions.</li>
+</ul>
+
+<h2 id="changes">What the new features change</h2>
+<h3>Record kinds</h3>
+<div class="tbl"><table>
+  <thead><tr><th>Kind</th><th>Status</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td><code>notes</code>, <code>journal</code>, <code>tags</code></td><td><span class="st st-built">Existing</span></td><td>Unchanged. Shared notes carry a share ID.</td></tr>
+    <tr><td><code>media</code></td><td><span class="st st-built">Existing</span></td><td>Journal and note photos, and now agent attachments (<code>source: "agent"</code>, with <code>text</code> for PDFs and text files)</td></tr>
+    <tr><td><code>finance</code></td><td><span class="st st-built">Existing</span></td><td>Unchanged. Only the owner ever writes an account.</td></tr>
+    <tr><td><code>agentThreads</code>, <code>agentMessages</code></td><td><span class="st st-built">Existing</span></td><td>Messages gain an <code>attachments</code> list of media references</td></tr>
+    <tr><td><code>links</code></td><td><span class="st st-built">Built</span></td><td>Links and collections</td></tr>
+    <tr><td><code>money</code></td><td><span class="st st-built">Built</span></td><td>A child's savings goals (name, target, saved)</td></tr>
+    <tr><td><code>accountViews</code></td><td><span class="st st-plan">New</span></td><td>The view-only projection of a shared account at its chosen level</td></tr>
+    <tr><td><code>family</code></td><td><span class="st st-built">Built</span></td><td>The organizer's child profiles (with each child's policy ID and family key) and the parent signing key, synced between the organizer's own devices</td></tr>
+  </tbody>
+</table></div>
+<p>A child's installed policy is device metadata, not a synced record, so a child can't edit it and a sync can't overwrite it.</p>
+<h3>CloudKit layout</h3>
+<div class="tbl"><table>
+  <thead><tr><th>Where</th><th>What</th><th>Readable by</th></tr></thead>
+  <tbody>
+    <tr><td>Private DB · <code>Notebook-&lt;id&gt;</code></td><td>Your encrypted revisions</td><td>Your paired devices</td></tr>
+    <tr><td>Private DB · <code>NotebookPairing</code></td><td>Short-lived pairing requests</td><td>Your devices during pairing</td></tr>
+    <tr><td>Private DB · <code>Share-&lt;id&gt;</code> <span class="st st-plan">New</span></td><td>One shared item: its revisions and a <code>ShareKey</code> record</td><td>You and the people on the share (through their shared database)</td></tr>
+    <tr><td>Public DB · <code>FamilyPolicy</code> <span class="st st-plan">New</span></td><td>A child's signed, encrypted settings. Only the organizer's account can write it.</td><td>Ciphertext to anyone with the app; readable only by enrolled devices</td></tr>
+  </tbody>
+</table></div>
+<h3>Keys</h3>
+<div class="tbl"><table>
+  <thead><tr><th>Key</th><th>Status</th><th>Lives</th><th>Protects</th></tr></thead>
+  <tbody>
+    <tr><td>Notebook key</td><td><span class="st st-built">Existing</span></td><td>Each of your devices' keychain</td><td>Your private notebook</td></tr>
+    <tr><td>AI provider keys</td><td><span class="st st-built">Existing</span></td><td>One device each (safeStorage, keychain)</td><td>Your AI account. A child's key arrives sealed inside their policy.</td></tr>
+    <tr><td>Share key</td><td><span class="st st-plan">New</span></td><td>CloudKit encrypted field in the share zone</td><td>One shared item</td></tr>
+    <tr><td>Family key and parent signing key</td><td><span class="st st-plan">New</span></td><td>The organizer's notebook; enrolled child devices hold the family key and public signing key</td><td>A child's policy: confidentiality and tamper-proofing</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="agent">The agent</h2>
+<div class="tbl"><table>
+  <thead><tr><th></th><th>Adults</th><th>Kids ("Ask")</th></tr></thead>
+  <tbody>
+    <tr><td>Purpose</td><td>Get things done across your notebook and the web</td><td>Answer curiosity questions and encourage the next one. Never homework.</td></tr>
+    <tr><td>Starting prompts</td><td>Turn reflection into a note, see where the money goes, find a way forward</td><td>Space, Earth, history, math and nature questions; Wonder of the day; Surprise me</td></tr>
+    <tr><td>Connection</td><td>Your provider, model and key, set per device</td><td>Chosen by the parent, delivered in the policy, never shown</td></tr>
+    <tr><td>Checks</td><td>Tool constraints in code; Allow edits switch</td><td>Plus a question check, an answer check, a fixed homework reply, a fixed crisis reply, and tool filtering</td></tr>
+    <tr><td>Attachments</td><td>Photos, PDFs and text files on both devices</td><td>Only the kinds the parent allows, checked with the question</td></tr>
+    <tr><td>Live text</td><td>On by default</td><td>Off, so nothing unchecked appears</td></tr>
+    <tr><td>Shared items</td><td>Readable; editable only where you can edit</td><td>The same, within the parent's sharing setting</td></tr>
+  </tbody>
+</table></div>
+<p>Attachments are already built: the composer saves them as media records, the message keeps references, and <code>AgentCore.attach</code> resends the newest four attachment turns within 24 MB, formatted for each provider. The kids' checker must therefore be an image-capable model.</p>
+
+<h2 id="privacy">Who can read what</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Data</th><th>You</th><th>Partner</th><th>Your child</th><th>Apple</th><th>AI provider</th></tr></thead>
+  <tbody>
+    <tr><td>Your private notes, journal, finance</td><td>Yes</td><td>No</td><td>No</td><td>No (ciphertext)</td><td>Only what the agent reads while you chat</td></tr>
+    <tr><td>A note you share with Partner</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td><td>When either of you asks your agent about it</td></tr>
+    <tr><td>An account you share, view only</td><td>Yes</td><td>At the chosen level, read only</td><td>No</td><td>No</td><td>When either agent reads it</td></tr>
+    <tr><td>Your child's notes, journal, chats</td><td>No</td><td>No</td><td>Yes</td><td>No</td><td>What the child's Ask reads and sends</td></tr>
+    <tr><td>Your child's settings and rules</td><td>Yes, you set them</td><td>No</td><td>Enforced, never displayed</td><td>No (ciphertext)</td><td>Rules go into the check and agent instructions</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="review">Design review findings</h2>
+<p>These come from reviewing the current code against the planned features. The first two must be fixed before sharing or family controls ship.</p>
+<div class="tbl"><table>
+  <thead><tr><th>#</th><th>Finding</th><th>Impact</th><th>Recommendation</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1 <span class="sev sev-h">High</span></td><td><code>RecordStore.insert</code> accepts only today's seven record kinds and throws "Invalid sync revision" for anything else (<code>RecordStore.swift:142</code>). <code>CloudSync</code> then stops syncing.</td><td>The first <code>links</code>, <code>accountViews</code> or <code>family</code> record would stop sync on every device that hasn't updated.</td><td>Ship a release that stores unknown kinds without interpreting them and keeps syncing. Only then add new kinds.</td></tr>
+    <tr><td class="n">2 <span class="sev sev-h">High</span></td><td><code>CloudSync</code> assumes one zone and one key: <code>zoneID</code> and <code>key</code> are single values, and every fetched record is opened with the notebook key.</td><td>Sharing needs many zones, each with its own key, plus the shared database.</td><td>Refactor to a zone-to-key routing table and a second sync engine for the shared database, with tests on isolated test containers, before any sharing UI.</td></tr>
+    <tr><td class="n">3 <span class="sev sev-h">High</span></td><td>Builds are ad-hoc signed on the Mac and development-signed on iOS. CloudKit runs in the Development environment.</td><td>Your partner, kids and other users can't install or sync reliably.</td><td>TestFlight for iOS, Developer ID signing and notarization for the Mac, and the CloudKit schema deployed to Production with the new record types.</td></tr>
+    <tr><td class="n">4 <span class="sev sev-m">Medium</span></td><td>On the Mac, every store read or write starts a new helper process (<code>execFileSync</code> in <code>native-store.js</code>). The renderer also loads whole collections into memory.</td><td>Attachments, links and shared items add more and larger calls; large PDFs pass through stdin each time.</td><td>Keep one long-lived store process like the cloud process, and move search to SQLite as <code>PERFORMANCE.md</code> already suggests.</td></tr>
+    <tr><td class="n">5 <span class="sev sev-m">Medium</span></td><td>All revision history is kept forever, including media.</td><td>Agent attachments (photos ~0.5 MB, PDFs up to 10 MB) will grow local storage and iCloud usage quickly.</td><td>Add storage management: show attachment usage, let people remove old chat attachments, and compact superseded media revisions once every device has them.</td></tr>
+    <tr><td class="n">6 <span class="sev sev-m">Medium</span></td><td>There's no device revocation or key rotation.</td><td>Family controls add more devices (kids') and need the family key rotated when a device is removed.</td><td>Build key rotation once and use it for the notebook key, the family key and share keys.</td></tr>
+    <tr><td class="n">7 <span class="sev sev-l">Low</span></td><td>The app lock isn't disk encryption; the Mac SQLite file and Markdown files are readable by anyone who can log in to that macOS account.</td><td>On a shared family Mac, a sibling could read another child's notebook.</td><td>Recommend a separate macOS user per child, and say so in Family setup.</td></tr>
+    <tr><td class="n">8 <span class="sev sev-l">Low</span></td><td>Agent attachments are stored under <code>app_journalMedia_</code> keys, a journal-specific name.</td><td>Confusing as media becomes general (notes, chat, links).</td><td>Add a general <code>app_media_</code> alias that reads and writes the same records.</td></tr>
+    <tr><td class="n">9 <span class="sev sev-l">Low</span></td><td>The app shell assumes a fixed set of sections (the <code>AppManager</code> comment still says two; menus use Cmd+1–4).</td><td>Links needs a slot, and kid mode needs sections hidden by policy.</td><td>Make sections a registry the policy can filter. Links becomes Cmd+4 and the Agent Cmd+5, or Links Cmd+5.</td></tr>
+    <tr><td class="n">10 <span class="sev sev-l">Low</span></td><td>iOS bundles each shared JS file by name in the Xcode project.</td><td>A new shared file (<code>agent-policy.js</code>, Links logic) silently missing on iOS fails only at runtime.</td><td>Add a test that every file the iOS agent loads is in the project's resources.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="roadmap">Build order</h2>
+<div class="phases">
+  <div class="phase"><span class="num">0</span><div><h4>Finish and ship what's built</h4><p><strong>In progress:</strong> the native Mac app is built and being tried on real data. Still to do: sign it for iCloud, then TestFlight and Developer ID distribution (finding 3).</p></div></div>
+  <div class="phase"><span class="num">1</span><div><h4>Foundations</h4><p><strong>Done:</strong> unknown-kind tolerance (finding 1). Still to do: release it to every device first. Then multi-zone sync routing (finding 2) and the long-lived store process (finding 4).</p></div></div>
+  <div class="phase"><span class="num">2</span><div><h4>Links</h4><p><strong>Built:</strong> the section on both platforms and agent tools. Still to do: the iOS share extension.</p></div></div>
+  <div class="phase"><span class="num">3</span><div><h4>Kid mode on one device</h4><p><code>agent-policy.js</code>: topics, rules, homework and crisis replies, the question and answer checks, tool filtering, curiosity prompts, app hiding. Tested with a hand-installed policy.</p></div></div>
+  <div class="phase"><span class="num">4</span><div><h4>Family controls</h4><p>The parent's Family editor, enrollment, signed policy delivery through the public database, key rotation (finding 6).</p></div></div>
+  <div class="phase"><span class="num">5</span><div><h4>Sharing</h4><p>Share zones and keys, the shared-database engine, then notes and links sharing, then view-only finance accounts with projections.</p></div></div>
+  <div class="phase"><span class="num">6</span><div><h4>Storage and polish</h4><p>Attachment storage management (finding 5), the general media key (finding 8), and per-child macOS account guidance (finding 7).</p></div></div>
+</div>
+
+<h2 id="related">Related documents</h2>
+<div class="docs">
+  <a href="design.html"><b>Family controls design</b><span>Roles, apps for kids, agent rules and checks, policy delivery</span></a>
+  <a href="sharing-design.html"><b>Sharing design</b><span>Shared notes, links collections and view-only accounts; the Links section</span></a>
+  <a href="../AI_AGENT.md"><b>AI agent</b><span>Providers, tools, attachments, web browsing (as built)</span></a>
+  <a href="../IOS_SYNC.md"><b>iPhone and iCloud sync</b><span>CloudKit setup, pairing, storage, privacy (as built)</span></a>
+  <a href="../PERFORMANCE.md"><b>Performance</b><span>List and store measurements and known limits</span></a>
+</div>
+<footer>Notebook · Design overview · Draft for review</footer>
+</main>
+</div>
+</body>
+</html>

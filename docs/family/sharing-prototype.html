@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Sharing Prototype</title>
+<style>
+/* Layout: two people, two notebooks. Ram's Mac on the left, his partner's iPhone on the right.
+   Each keeps a private notebook; only items shared between them cross over (after a short sync delay).
+   Notebook's own tokens: off-white ground, white panels, ink, one blue accent, a muted hue per app. */
+:root {
+  --desk: #e7e6e1; --bg: #f5f5f3; --surface: #ffffff; --hover: #ebebe8;
+  --text: #171717; --text2: #4f4f4c; --text3: #6f6f6c; --text4: #a3a3a0;
+  --border: #e4e4e0; --border2: #ececea; --accent: #2f6bff; --accent-soft: rgba(47,107,255,.12);
+  --green: #16a34a; --red: #d64545; --amber: #b86e00;
+  --hue-notes: #d97706; --hue-links: #0891b2; --hue-finance: #16a34a;
+  --you: #2f6bff; --partner: #c2417a;
+  --shadow: 0 30px 60px -22px rgba(20,20,10,.32), 0 0 0 .5px rgba(0,0,0,.14); --bezel: #1b1b1d;
+  --font-serif: Charter, "Iowan Old Style", "Source Serif Pro", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #232322; --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --accent-soft: rgba(93,139,255,.16); --green: #4ade80; --red: #f87171; --amber: #fbbf24;
+  --you: #5d8bff; --partner: #f06aa5; --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050505; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #232322; --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --accent-soft: rgba(93,139,255,.16); --green: #4ade80; --red: #f87171; --amber: #fbbf24;
+  --you: #5d8bff; --partner: #f06aa5; --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); --bezel: #050505; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text); font-family: var(--font-sans); font-size: 13px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 48px; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .45; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.top { max-width: 1280px; margin: 0 auto 18px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.top h1 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 28px; }
+.top p { margin: 4px 0 0; color: var(--text2); max-width: 74ch; font-size: 13.5px; }
+.links-nav { display: flex; gap: 4px; flex-wrap: wrap; font-size: 12.5px; }
+.links-nav a { color: var(--text2); text-decoration: none; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); }
+.links-nav a[aria-current="page"] { color: var(--surface); background: var(--text); border-color: var(--text); }
+.stage { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 352px; gap: 30px; align-items: start; }
+@media (max-width: 1040px) { .stage { grid-template-columns: minmax(0,1fr); } .phone-wrap { justify-self: center; } }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); margin: 0 0 9px 4px; display: flex; gap: 8px; align-items: center; }
+.label i { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-style: normal; font-size: 10px; font-weight: 700; }
+.synced { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--green); opacity: 0; transition: opacity .3s; }
+.synced.on { opacity: 1; }
+.av { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 10.5px; font-weight: 700; font-style: normal; flex: 0 0 auto; box-shadow: 0 0 0 2px var(--surface); }
+.av + .av { margin-left: -6px; }
+.avs { display: inline-flex; align-items: center; }
+.badge { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--hover); color: var(--text2); white-space: nowrap; }
+.badge.view { background: color-mix(in srgb, var(--amber) 14%, transparent); color: var(--amber); }
+.badge.edit { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
+
+/* ---------- Mac ---------- */
+.mac-wrap { position: relative; min-width: 0; }
+.mac { background: var(--bg); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; height: 700px; min-width: 0; }
+@media (max-width: 720px) { .mac { height: auto; min-height: 640px; } }
+.tb { height: 52px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+.lights { display: flex; gap: 8px; flex: 0 0 auto; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.switcher { display: flex; gap: 2px; background: var(--hover); border-radius: 9px; padding: 2px; margin: 0 auto; overflow-x: auto; max-width: 100%; }
+.switcher button { border: 0; background: none; padding: 5px 12px; border-radius: 7px; font-size: 12.5px; font-weight: 500; color: var(--text2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.switcher button i { width: 8px; height: 8px; border-radius: 3px; display: block; }
+.switcher button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.newtag { font-size: 9.5px; font-weight: 700; color: var(--hue-links); }
+.mbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px minmax(0,1fr); }
+@media (max-width: 720px) { .mbody { grid-template-columns: minmax(0,1fr); } .mbody .list { max-height: 230px; border-right: 0; border-bottom: 1px solid var(--border); } }
+.list { border-right: 1px solid var(--border); overflow-y: auto; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+.list-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 8px; }
+.list-head b { font-family: var(--font-serif); font-weight: 400; font-size: 20px; }
+.sec { font-size: 11px; font-weight: 600; color: var(--text4); padding: 12px 10px 4px; }
+.newbtn, .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 7px; padding: 4px 11px; font-size: 12px; font-weight: 500; }
+.btn.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+.btn.danger { color: var(--red); }
+.btn.share { display: inline-flex; align-items: center; gap: 6px; }
+.btn.share svg { width: 13px; height: 13px; fill: currentColor; }
+.item { border: 0; background: none; text-align: left; padding: 9px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; width: 100%; }
+.item:hover { background: var(--hover); }
+.item[aria-current="true"] { background: var(--accent-soft); }
+.item .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.item b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item span { color: var(--text3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor { overflow-y: auto; padding: 22px 34px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+@media (max-width: 520px) { .editor { padding: 18px 14px; } }
+.ehead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ehead .grow { flex: 1; min-width: 160px; }
+.editor input.title { border: 0; background: none; outline: none; font-family: var(--font-serif); font-size: 28px; padding: 0; width: 100%; }
+.sharedline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); flex-wrap: wrap; }
+.editor textarea { border: 0; background: none; outline: none; resize: none; font-size: 15px; line-height: 1.65; flex: 1; min-height: 280px; width: 100%; max-width: 68ch; }
+.editor textarea[readonly] { color: var(--text2); }
+.lk { display: flex; gap: 12px; padding: 11px 12px; border: 1px solid var(--border2); background: var(--surface); border-radius: 12px; align-items: flex-start; text-decoration: none; color: inherit; }
+.lk .fav { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; flex: 0 0 auto; }
+.lk .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lk b { font-size: 14px; font-weight: 600; }
+.lk span { font-size: 12px; color: var(--text3); overflow-wrap: anywhere; }
+.lk small { font-size: 11.5px; color: var(--text4); display: flex; align-items: center; gap: 6px; }
+.lk .x { border: 0; background: none; color: var(--text4); font-size: 16px; padding: 0 4px; }
+.addlink { display: flex; gap: 8px; }
+.addlink input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 10px; outline: none; }
+.addlink input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.fin { overflow-y: auto; padding: 22px 30px; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+@media (max-width: 520px) { .fin { padding: 18px 14px; } }
+.fin h2 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 26px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.panel h3 { margin: 0; padding: 11px 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border2); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.panel h3 small { color: var(--text3); font-weight: 400; }
+.acct { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+.acct + .acct { border-top: 1px solid var(--border2); }
+.acct .txt { flex: 1; min-width: 140px; display: flex; flex-direction: column; }
+.acct .txt small { color: var(--text3); }
+.acct .amt { font-variant-numeric: tabular-nums; font-weight: 600; }
+.hold { display: grid; grid-template-columns: 64px minmax(0,1fr) 80px; gap: 8px; padding: 6px 14px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text2); }
+.hold b { color: var(--text); font-weight: 600; }
+.hold span:last-child { text-align: right; }
+
+.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.28); display: grid; place-items: start center; padding-top: 70px; z-index: 5; border-radius: 12px; }
+.sheet { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); width: min(460px, calc(100% - 24px)); padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100% - 90px); overflow-y: auto; }
+.sheet h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.sheet p { margin: 0; color: var(--text2); }
+.people { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.person { display: flex; align-items: center; gap: 10px; padding: 9px 12px; flex-wrap: wrap; }
+.person + .person { border-top: 1px solid var(--border2); }
+.person .txt { flex: 1; min-width: 120px; display: flex; flex-direction: column; }
+.person .txt small { color: var(--text3); }
+.person select { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick button { border: 1px dashed var(--border); background: none; border-radius: 99px; padding: 4px 10px 4px 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.quick button:hover { border-color: var(--accent); }
+.invite { display: flex; gap: 8px; }
+.invite input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; background: var(--surface); }
+.seg { display: inline-flex; background: var(--hover); border-radius: 8px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--text2); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.sheet .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--text3); }
+
+/* ---------- iPhone ---------- */
+.phone-wrap { width: min(352px, 100%); }
+.phone { background: var(--bezel); border-radius: 50px; padding: 11px; box-shadow: var(--shadow); }
+.screen { background: var(--bg); border-radius: 40px; height: 720px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.island { width: 100px; height: 29px; background: #000; border-radius: 20px; margin: 10px auto 0; flex: 0 0 auto; }
+.sbar { position: absolute; top: 15px; left: 30px; right: 28px; display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; pointer-events: none; }
+.nav { display: flex; align-items: center; gap: 8px; padding: 10px 16px 6px; flex: 0 0 auto; min-height: 46px; }
+.nav h3 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 26px; flex: 1; min-width: 0; }
+.nav .back { border: 0; background: none; color: var(--accent); font-size: 15px; padding: 0; flex: 1; text-align: left; }
+.pview { flex: 1; overflow-y: auto; padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.psec { font-size: 12px; font-weight: 600; color: var(--text3); padding: 8px 4px 0; }
+.pcard { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 11px 13px; display: flex; gap: 10px; align-items: center; text-align: left; width: 100%; }
+.pcard .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pcard b { font-size: 15px; font-weight: 600; }
+.pcard span { color: var(--text3); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pedit { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.pedit h4 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 24px; }
+.pedit textarea { border: 0; background: none; outline: none; resize: none; font-size: 16px; line-height: 1.6; flex: 1; min-height: 300px; }
+.pedit textarea[readonly] { color: var(--text2); }
+.pbig { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 2px; }
+.pbig small { color: var(--text3); }
+.pbig b { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tabs { display: flex; border-top: 1px solid var(--border); padding: 6px 4px 18px; flex: 0 0 auto; }
+.tabs button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--text4); font-weight: 500; position: relative; }
+.tabs svg { width: 22px; height: 22px; fill: currentColor; }
+.tabs button[aria-current="true"] { color: var(--accent); }
+.tabs .dot { position: absolute; top: 0; right: calc(50% - 16px); width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.toast { position: absolute; top: 50px; left: 12px; right: 12px; background: var(--surface); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,.2), 0 0 0 1px var(--border); padding: 11px 13px; display: flex; gap: 10px; align-items: center; z-index: 6; animation: drop .3s ease-out; }
+.toast .txt { flex: 1; min-width: 0; font-size: 13px; }
+.toast .txt b { display: block; font-size: 13.5px; }
+.toast button { border: 0; background: var(--accent); color: #fff; border-radius: 99px; padding: 5px 12px; font-weight: 600; font-size: 12.5px; }
+@keyframes drop { from { transform: translateY(-14px); opacity: 0; } }
+.foot { max-width: 1280px; margin: 18px auto 0; color: var(--text4); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Sharing in Notebook</h1>
+    <p>Two people, two private notebooks. Share a note or a links collection and you can both edit it. Each of you tracks your own finance accounts. Share one and it shows up in the other person's Finance as a read-only shared account. Try sharing “Grocery list” or your Brokerage account from the Mac, then look at your partner's iPhone.</p>
+  </div>
+  <nav class="links-nav" aria-label="Prototypes"><a href="app-prototype.html">Grown-up app</a><a href="kids-prototype.html">Kids app</a><a href="prototype.html">Family controls</a><a href="sharing-prototype.html" aria-current="page">Sharing</a><a href="sharing-design.html">Sharing design</a></nav>
+</header>
+<div class="stage">
+  <div class="mac-wrap"><p class="label"><i style="background:var(--you)">R</i>Ram's Mac <span class="synced" id="sync-mac">Updated from iCloud</span></p><div class="mac" id="mac"></div></div>
+  <div class="phone-wrap"><p class="label"><i style="background:var(--partner)">P</i>Partner's iPhone <span class="synced" id="sync-phone">Updated from iCloud</span></p><div class="phone"><div class="screen" id="screen"></div></div></div>
+</div>
+<p class="foot">Example people and data. Sync is simulated with a short delay; in the app, shared items travel through CloudKit sharing and arrive within seconds when both devices are online.</p>
+
+<script>
+(function () {
+'use strict';
+const I = {
+  share: '<svg viewBox="0 0 16 16"><path d="M8 1l3.5 3.5-1 1L8.7 3.7V10H7.3V3.7L5.5 5.5l-1-1zM2 8h2v5h8V8h2v6.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5z"/></svg>',
+  tab: {
+    notes: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 7v2h8v-2zm0 4v2h8v-2zm0-8v2h5V6z"/></svg>',
+    links: '<svg viewBox="0 0 24 24"><path d="M10.6 13.4a4 4 0 0 1 0-5.7l3-3a4 4 0 0 1 5.7 5.7l-1.6 1.6-1.4-1.4 1.6-1.6a2 2 0 0 0-2.9-2.9l-3 3a2 2 0 0 0 0 2.9zm2.8-2.8a4 4 0 0 1 0 5.7l-3 3a4 4 0 0 1-5.7-5.7l1.6-1.6 1.4 1.4-1.6 1.6a2 2 0 0 0 2.9 2.9l3-3a2 2 0 0 0 0-2.9z"/></svg>',
+    finance: '<svg viewBox="0 0 24 24"><path d="M3 19h18v2H3zM5 11h3v6H5zm5.5-4h3v10h-3zM16 3h3v14h-3z"/></svg>'
+  }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const usd = n => '$' + Math.round(n).toLocaleString('en-US');
+const PEOPLE = { you: { name: 'Ram', short: 'R', color: 'var(--you)' }, partner: { name: 'Partner', short: 'P', color: 'var(--partner)' }, sam: { name: 'Sam', short: 'S', color: '#f2683c' }, alex: { name: 'Alex', short: 'A', color: '#11a08c' } };
+const av = who => `<i class="av" style="background:${PEOPLE[who]?.color || '#8e8e93'}" title="${esc(PEOPLE[who]?.name || who)}">${esc(PEOPLE[who]?.short || who[0].toUpperCase())}</i>`;
+const LEVELS = { balance: 'Balance only', holdings: 'Balance and holdings', all: 'Holdings and transactions' };
+const domainColor = d => ['#0891b2', '#7c3aed', '#d97706', '#16a34a', '#db2777', '#2563eb'][[...d].reduce((a, c) => a + c.charCodeAt(0), 0) % 6];
+
+/* Each item has an owner. A share lists people and what they may do. */
+const S = {
+  notes: [
+    { id: 'n1', owner: 'you', t: 'Weekend plan', b: 'Saturday: farmers market, then soccer at 10.\nSunday: finish staining the deck.', when: 'Today' },
+    { id: 'n2', owner: 'you', t: 'Grocery list', b: 'Milk\nEggs\nSourdough\nApples\nCoffee beans', when: 'Today' },
+    { id: 'n3', owner: 'you', t: 'Book list', b: 'The Overstory\nPiranesi\nKlara and the Sun', when: 'Oct 12' },
+    { id: 'p1', owner: 'partner', t: 'Kids’ dentist dates', b: 'Sam: Nov 4, 3:30 PM\nAlex: Nov 11, 4:00 PM', when: 'Yesterday' }
+  ],
+  collections: [
+    { id: 'c1', owner: 'you', name: 'Reading list', links: [['https://www.quantamagazine.org/the-math-of-shuffling', 'The surprising math of shuffling cards', 'you'], ['https://www.theatlantic.com/family/', 'How kids learn to love reading', 'you']] },
+    { id: 'c2', owner: 'you', name: 'Kids’ science videos', links: [['https://www.youtube.com/@veritasium', 'Veritasium', 'you'], ['https://www.nasa.gov/learning-resources/', 'NASA learning resources', 'you']] },
+    { id: 'p2', owner: 'partner', name: 'Recipes', links: [['https://cooking.nytimes.com/recipes/1017518', 'Weeknight dal', 'partner'], ['https://www.seriouseats.com/sheet-pan-gnocchi', 'Sheet-pan gnocchi', 'partner']] }
+  ],
+  accounts: [
+    { id: 'a1', owner: 'you', name: 'Brokerage', type: 'Taxable · Robinhood', balance: 48210, holdings: [['VTI', '120 shares', 32760], ['AAPL', '40 shares', 9480], ['MSFT', '12 shares', 5160], ['Cash', '', 810]], txns: [['Oct 14', 'Bought 5 VTI', -1365], ['Oct 1', 'Deposit', 1000], ['Sep 28', 'Dividend VTI', 84]] },
+    { id: 'a2', owner: 'you', name: '401(k)', type: 'Retirement', balance: 132400, holdings: [['Target 2050', '', 132400]], txns: [['Oct 15', 'Contribution', 950]] },
+    { id: 'a3', owner: 'you', name: 'Checking', type: 'Bank', balance: 8450, holdings: [], txns: [['Oct 18', 'Trader Joe’s', -46], ['Oct 17', 'Electric', -118]] },
+    { id: 'p3', owner: 'partner', name: 'Checking', type: 'Bank', balance: 5200, holdings: [], txns: [] },
+    { id: 'p4', owner: 'partner', name: 'Roth IRA', type: 'Retirement', balance: 38000, holdings: [['VTSAX', '', 38000]], txns: [] }
+  ],
+  shares: [{ kind: 'collection', id: 'p2', people: { you: 'edit' } }],
+  mac: { app: 'notes', note: 'n2', coll: 'c1', sheet: null, draftPeople: null, level: 'holdings' },
+  phone: { tab: 'notes', open: null, toast: null, unseen: {} }
+};
+const share = (kind, id) => S.shares.find(s => s.kind === kind && s.id === id);
+const canSee = (who, owner, kind, id) => owner === who || !!share(kind, id)?.people[who];
+const perm = (who, owner, kind, id) => owner === who ? 'owner' : share(kind, id)?.people[who] || null;
+const LIST = { note: 'notes', collection: 'collections', account: 'accounts' };
+const find = (kind, id) => S[LIST[kind]].find(x => x.id === id);
+let timers = {};
+function flash(el) { const n = document.getElementById(el); n.classList.add('on'); clearTimeout(timers[el]); timers[el] = setTimeout(() => n.classList.remove('on'), 1500); }
+/* A change made on one device reaches the other person a moment later. */
+function syncTo(target, then) { setTimeout(() => { then?.(); target === 'phone' ? renderPhone() : renderMac(); flash(target === 'phone' ? 'sync-phone' : 'sync-mac'); }, 700); }
+
+/* ---------- Mac (Ram) ---------- */
+const mac = document.getElementById('mac');
+function sharedLine(kind, item, me) {
+  const sh = share(kind, item.id);
+  if (item.owner !== me) return `<span class="sharedline">${av(item.owner)} Shared by ${esc(PEOPLE[item.owner].name)} · <span class="badge ${sh.people[me] === 'view' ? 'view' : 'edit'}">${sh.people[me] === 'view' ? 'View only' : 'Can edit'}</span></span>`;
+  if (!sh || !Object.keys(sh.people).length) return '';
+  return `<span class="sharedline"><span class="avs">${Object.keys(sh.people).map(av).join('')}</span> Shared with ${Object.keys(sh.people).map(p => PEOPLE[p].name).join(', ')}</span>`;
+}
+const shareBtn = (kind, id) => `<button class="btn share" data-share="${kind}:${id}">${I.share}${share(kind, id) && Object.keys(share(kind, id).people).length ? 'Shared' : 'Share'}</button>`;
+function renderMac() {
+  const M = S.mac, me = 'you';
+  if (mac.contains(document.activeElement) && ['m-body', 'm-title'].includes(document.activeElement.id)) return;
+  let body = '';
+  if (M.app === 'notes') {
+    const mine = S.notes.filter(n => n.owner === me), withMe = S.notes.filter(n => n.owner !== me && canSee(me, n.owner, 'note', n.id));
+    if (!S.notes.some(n => n.id === M.note && canSee(me, n.owner, 'note', n.id))) M.note = mine[0]?.id;
+    const cur = S.notes.find(n => n.id === M.note), p = cur && perm(me, cur.owner, 'note', cur.id);
+    const row = n => `<button class="item" data-note="${n.id}" aria-current="${n.id === M.note}"><span class="txt"><b>${esc(n.t)}</b><span>${esc(n.when)} · ${esc(n.b.split('\n')[0])}</span></span>${share('note', n.id) && Object.keys(share('note', n.id).people).length ? `<span class="avs">${(n.owner === me ? Object.keys(share('note', n.id).people) : [n.owner]).map(av).join('')}</span>` : ''}</button>`;
+    body = `<div class="mbody"><div class="list"><div class="list-head"><b>Notes</b><button class="newbtn">New note</button></div>${mine.map(row).join('')}${withMe.length ? `<div class="sec">Shared with you</div>${withMe.map(row).join('')}` : ''}</div>
+      <div class="editor">${cur ? `<div class="ehead"><div class="grow">${sharedLine('note', cur, me) || `<span class="sharedline">Only you</span>`}</div>${cur.owner === me ? shareBtn('note', cur.id) : ''}</div>
+        <input class="title" id="m-title" value="${esc(cur.t)}" aria-label="Title"${p === 'view' ? ' readonly' : ''}><textarea id="m-body" aria-label="Note"${p === 'view' ? ' readonly' : ''}>${esc(cur.b)}</textarea>` : ''}</div></div>`;
+  } else if (M.app === 'links') {
+    const mine = S.collections.filter(c => c.owner === me), withMe = S.collections.filter(c => c.owner !== me && canSee(me, c.owner, 'collection', c.id));
+    if (!S.collections.some(c => c.id === M.coll && canSee(me, c.owner, 'collection', c.id))) M.coll = mine[0]?.id;
+    const cur = S.collections.find(c => c.id === M.coll), p = cur && perm(me, cur.owner, 'collection', cur.id);
+    const row = c => `<button class="item" data-coll="${c.id}" aria-current="${c.id === M.coll}"><span class="txt"><b>${esc(c.name)}</b><span>${c.links.length} link${c.links.length === 1 ? '' : 's'}</span></span>${share('collection', c.id) && Object.keys(share('collection', c.id).people).length ? `<span class="avs">${(c.owner === me ? Object.keys(share('collection', c.id).people) : [c.owner]).map(av).join('')}</span>` : ''}</button>`;
+    body = `<div class="mbody"><div class="list"><div class="list-head"><b>Links</b><button class="newbtn">New collection</button></div>${mine.map(row).join('')}${withMe.length ? `<div class="sec">Shared with you</div>${withMe.map(row).join('')}` : ''}</div>
+      <div class="editor">${cur ? `<div class="ehead"><div class="grow"><input class="title" value="${esc(cur.name)}" readonly aria-label="Collection">${sharedLine('collection', cur, me)}</div>${cur.owner === me ? shareBtn('collection', cur.id) : ''}</div>
+        ${p !== 'view' ? `<form class="addlink" data-form="link"><input id="m-link" placeholder="Paste a link, like https://www.nasa.gov/moon" aria-label="Add a link"><button class="btn primary">Add</button></form>` : ''}
+        ${cur.links.map((l, i) => linkCard(l, i, p !== 'view')).join('')}` : ''}</div></div>`;
+  } else {
+    const mine = S.accounts.filter(a => a.owner === me), withMe = S.accounts.filter(a => a.owner !== me && canSee(me, a.owner, 'account', a.id));
+    const total = mine.reduce((t, a) => t + a.balance, 0);
+    body = `<div class="mbody" style="grid-template-columns:minmax(0,1fr)"><div class="fin"><h2>Your money</h2>
+      <div class="panel"><h3>Your accounts <small>Net worth ${usd(total)} · <button class="btn" data-act="m-add-acct">Add account</button></small></h3>${mine.map(a => `<div class="acct"><span class="txt"><b>${esc(a.name)}</b><small>${esc(a.type)}</small></span>${share('account', a.id) && Object.keys(share('account', a.id).people).length ? `<span class="avs">${Object.keys(share('account', a.id).people).map(av).join('')}</span><span class="badge">${esc(LEVELS[share('account', a.id).level])}</span>` : ''}<span class="amt">${usd(a.balance)}</span>${shareBtn('account', a.id)}</div>`).join('')}</div>
+      ${withMe.length ? `<div class="panel"><h3>Shared accounts <small>View only · not in your net worth</small></h3>${withMe.map(a => accountView(a, share('account', a.id).level)).join('')}</div>` : ''}
+      <p class="note">People you share an account with can't change it, move money or see your other accounts. Prices update on their own device.</p></div></div>`;
+  }
+  const appBtn = (id, l, c, extra) => `<button data-app="${id}" aria-pressed="${M.app === id}"><i style="background:${c}"></i>${l}${extra || ''}</button>`;
+  mac.innerHTML = `<div class="tb"><div class="lights"><i></i><i></i><i></i></div><div class="switcher" role="tablist" aria-label="Apps">${appBtn('notes', 'Notes', 'var(--hue-notes)')}${appBtn('links', 'Links', 'var(--hue-links)', ' <span class="newtag">NEW</span>')}${appBtn('finance', 'Finance', 'var(--hue-finance)')}</div></div>${body}`;
+  document.querySelector('.mac-wrap .sheet-back')?.remove();
+  if (M.sheet) renderSheet();
+}
+function linkCard([url, title, by], i, editable) {
+  const d = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+  return `<div class="lk"><span class="fav" style="background:${domainColor(d)}">${esc(d[0].toUpperCase())}</span><span class="txt"><b>${esc(title)}</b><span>${esc(d)}</span><small>${av(by)} Saved by ${esc(PEOPLE[by].name)}</small></span>${editable ? `<button class="x" data-unlink="${i}" aria-label="Remove link">×</button>` : ''}</div>`;
+}
+function accountView(a, level) {
+  return `<div class="acct"><span class="txt"><b>${esc(a.name)}</b><small>${av(a.owner)} ${esc(PEOPLE[a.owner].name)}'s ${esc(a.type)}</small></span><span class="badge view">View only</span><span class="amt">${usd(a.balance)}</span></div>
+    ${level !== 'balance' ? a.holdings.map(([t, q, v]) => `<div class="hold"><b>${esc(t)}</b><span>${esc(q)}</span><span>${usd(v)}</span></div>`).join('') : ''}
+    ${level === 'all' ? a.txns.map(([d, n, v]) => `<div class="hold"><span>${esc(d)}</span><span>${esc(n)}</span><span>${v < 0 ? '−' : '+'}${usd(Math.abs(v))}</span></div>`).join('') : ''}`;
+}
+function renderSheet() {
+  const M = S.mac, [kind, id] = M.sheet.split(':'), item = find(kind, id), d = M.draftPeople;
+  const label = kind === 'note' ? item.t : item.name, isAcct = kind === 'account';
+  const back = document.createElement('div'); back.className = 'sheet-back';
+  back.innerHTML = `<div class="sheet" role="dialog" aria-label="Share"><h2>Share “${esc(label)}”</h2>
+    <p>${isAcct ? 'They’ll see this account in their Finance, view only. It won’t count in their net worth.' : 'Everyone here can open it in Notebook. Changes sync to everyone.'}</p>
+    <div class="quick" aria-label="Your family">${['partner', 'sam', 'alex'].filter(p => !d[p]).map(p => `<button data-add="${p}">${av(p)}${PEOPLE[p].name}</button>`).join('')}</div>
+    <div class="invite"><input id="invite" placeholder="Invite by email or phone" aria-label="Invite by email or phone"><button class="btn" data-act="invite">Invite</button></div>
+    ${Object.keys(d).length ? `<div class="people">${Object.entries(d).map(([p, v]) => `<div class="person">${av(p)}<span class="txt"><b>${esc(PEOPLE[p]?.name || p)}</b><small>${PEOPLE[p] ? 'Family · Notebook' : 'Invitation sent'}</small></span>${isAcct ? '<span class="badge view">View only</span>' : `<select data-perm="${esc(p)}" aria-label="Permission for ${esc(PEOPLE[p]?.name || p)}"><option value="edit"${v === 'edit' ? ' selected' : ''}>Can edit</option><option value="view"${v === 'view' ? ' selected' : ''}>View only</option></select>`}<button class="btn" data-remove="${esc(p)}">Remove</button></div>`).join('')}</div>` : '<p class="note">Not shared yet.</p>'}
+    ${isAcct ? `<div class="row"><span>What they see</span><div class="seg" role="group" aria-label="What they see">${Object.entries(LEVELS).map(([v, l]) => `<button data-level="${v}" aria-pressed="${M.level === v}">${l}</button>`).join('')}</div></div>` : ''}
+    <div class="row"><button class="btn danger" data-act="stop"${share(kind, id) ? '' : ' disabled'}>Stop sharing</button><span><button class="btn" data-act="cancel">Cancel</button> <button class="btn primary" data-act="save">${share(kind, id) ? 'Save' : 'Share'}</button></span></div></div>`;
+  back.addEventListener('click', onMacClick); back.addEventListener('change', e => { if (e.target.dataset.perm) M.draftPeople[e.target.dataset.perm] = e.target.value; });
+  document.querySelector('.mac-wrap').appendChild(back);
+}
+function onMacClick(e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const M = S.mac;
+  if (b.dataset.app) { M.app = b.dataset.app; }
+  else if (b.dataset.note) M.note = b.dataset.note;
+  else if (b.dataset.coll) M.coll = b.dataset.coll;
+  else if (b.dataset.share) { const [kind, id] = b.dataset.share.split(':'), sh = share(kind, id); M.sheet = b.dataset.share; M.draftPeople = sh ? { ...sh.people } : {}; M.level = sh?.level || 'holdings'; }
+  else if (b.dataset.add) { M.draftPeople[b.dataset.add] = M.sheet.startsWith('account') ? 'view' : 'edit'; }
+  else if (b.dataset.remove) delete M.draftPeople[b.dataset.remove];
+  else if (b.dataset.level) M.level = b.dataset.level;
+  else if (b.dataset.unlink) { const c = find('collection', M.coll); c.links.splice(+b.dataset.unlink, 1); syncTo('phone'); }
+  else switch (b.dataset.act) {
+    case 'invite': { const v = document.getElementById('invite').value.trim(); if (v) M.draftPeople[v] = M.sheet.startsWith('account') ? 'view' : 'edit'; break; }
+    case 'cancel': M.sheet = null; break;
+    case 'm-add-acct': S.accounts.push({ id: 'a' + Date.now(), owner: 'you', name: 'HSA', type: 'Health savings', balance: 6400, holdings: [['VTI', '20 shares', 5460], ['Cash', '', 940]], txns: [] }); break;
+    case 'stop': { const [kind, id] = M.sheet.split(':'); S.shares = S.shares.filter(s => !(s.kind === kind && s.id === id)); M.sheet = null; syncTo('phone'); break; }
+    case 'save': {
+      const [kind, id] = M.sheet.split(':'), had = share(kind, id), before = had ? { ...had.people } : {};
+      S.shares = S.shares.filter(s => !(s.kind === kind && s.id === id));
+      if (Object.keys(M.draftPeople).length) S.shares.push({ kind, id, people: { ...M.draftPeople }, level: M.level });
+      M.sheet = null;
+      if (M.draftPeople.partner && !before.partner) syncTo('phone', () => { const item = find(kind, id); S.phone.toast = { kind, id, text: `Ram shared ${kind === 'account' ? 'an account' : kind === 'collection' ? 'a links collection' : 'a note'}: “${kind === 'note' ? item.t : item.name}”` }; S.phone.unseen[kind === 'note' ? 'notes' : kind === 'collection' ? 'links' : 'finance'] = true; });
+      else syncTo('phone');
+      break;
+    }
+    default: if (!b.dataset.app && !b.dataset.note && !b.dataset.coll) return;
+  }
+  renderMac();
+}
+mac.addEventListener('click', onMacClick);
+mac.addEventListener('input', e => {
+  const n = S.notes.find(x => x.id === S.mac.note); if (!n) return;
+  if (e.target.id === 'm-body') n.b = e.target.value; else if (e.target.id === 'm-title') n.t = e.target.value; else return;
+  n.when = 'Just now'; if (canSee('partner', n.owner, 'note', n.id)) syncTo('phone');
+});
+mac.addEventListener('focusout', e => { if (['m-body', 'm-title'].includes(e.target.id)) setTimeout(renderMac, 0); });
+mac.addEventListener('submit', e => {
+  e.preventDefault(); const v = document.getElementById('m-link').value.trim(); if (!v) return;
+  const url = /^https?:\/\//.test(v) ? v : 'https://' + v, d = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+  const c = find('collection', S.mac.coll); c.links.unshift([url, d.split('.')[0].replace(/^./, x => x.toUpperCase()) + ' · fetched title', 'you']);
+  renderMac(); if (canSee('partner', c.owner, 'collection', c.id)) syncTo('phone');
+});
+
+/* ---------- iPhone (Partner) ---------- */
+const screen = document.getElementById('screen');
+function renderPhone() {
+  const P = S.phone, me = 'partner';
+  if (screen.contains(document.activeElement) && document.activeElement.id === 'p-body') return;
+  let nav = '', view = '';
+  const tabsMap = { notes: 'note', links: 'collection', finance: 'account' };
+  if (P.open) {
+    const [kind, id] = P.open.split(':'), item = find(kind, id), p = item && perm(me, item.owner, kind, id);
+    if (!item || !p) { P.open = null; return renderPhone(); }
+    nav = `<div class="nav"><button class="back" data-act="back">‹ ${kind === 'note' ? 'Notes' : 'Links'}</button></div>`;
+    if (kind === 'note') view = `<div class="pview"><div class="pedit"><h4>${esc(item.t)}</h4>${item.owner !== me ? `<span class="sharedline">${av(item.owner)} Shared by ${esc(PEOPLE[item.owner].name)} · <span class="badge ${p === 'view' ? 'view' : 'edit'}">${p === 'view' ? 'View only' : 'Can edit'}</span></span>` : ''}<textarea id="p-body" aria-label="Note"${p === 'view' ? ' readonly' : ''}>${esc(item.b)}</textarea></div></div>`;
+    else view = `<div class="pview"><h4 style="margin:0;font-family:var(--font-serif);font-weight:400;font-size:24px">${esc(item.name)}</h4>${item.owner !== me ? `<span class="sharedline">${av(item.owner)} Shared by ${esc(PEOPLE[item.owner].name)}</span>` : sharedLine('collection', item, me)}
+      ${p !== 'view' ? `<form class="addlink" data-form="plink"><input id="p-link" placeholder="Paste a link" aria-label="Add a link"><button class="btn primary">Add</button></form>` : ''}${item.links.map((l, i) => linkCard(l, i, false)).join('')}</div>`;
+  } else if (P.tab === 'finance') {
+    const mine = S.accounts.filter(a => a.owner === me), withMe = S.accounts.filter(a => a.owner !== me && canSee(me, a.owner, 'account', a.id));
+    nav = `<div class="nav"><h3>Finance</h3></div>`;
+    view = `<div class="pview"><div class="pbig"><small>Your net worth</small><b>${usd(mine.reduce((t, a) => t + a.balance, 0))}</b></div>
+      <div class="panel"><h3>Your accounts <button class="btn" data-act="p-add-acct">Add account</button></h3>${mine.map(a => `<div class="acct"><span class="txt"><b>${esc(a.name)}</b><small>${esc(a.type)}</small></span><span class="amt">${usd(a.balance)}</span></div>`).join('')}</div>
+      ${withMe.length ? `<div class="panel"><h3>Shared accounts <small>View only · not in net worth</small></h3>${withMe.map(a => accountView(a, share('account', a.id).level)).join('')}</div>` : ''}</div>`;
+  } else {
+    const kind = tabsMap[P.tab], list = S[LIST[kind]];
+    const mine = list.filter(x => x.owner === me), withMe = list.filter(x => x.owner !== me && canSee(me, x.owner, kind, x.id));
+    const card = x => `<button class="pcard" data-open="${kind}:${x.id}"><span class="txt"><b>${esc(kind === 'note' ? x.t : x.name)}</b><span>${esc(kind === 'note' ? x.b.split('\n')[0] : x.links.length + ' links')}</span></span>${x.owner !== me ? av(x.owner) : share(kind, x.id) ? `<span class="avs">${Object.keys(share(kind, x.id).people).map(av).join('')}</span>` : ''}</button>`;
+    nav = `<div class="nav"><h3>${P.tab === 'notes' ? 'Notes' : 'Links'}</h3></div>`;
+    view = `<div class="pview">${mine.map(card).join('')}${withMe.length ? `<div class="psec">Shared with you</div>${withMe.map(card).join('')}` : ''}</div>`;
+  }
+  const toast = P.toast ? `<div class="toast" role="status">${av('you')}<span class="txt"><b>New shared item</b>${esc(P.toast.text)}</span><button data-act="open-toast">Open</button></div>` : '';
+  screen.innerHTML = `<div class="island"></div><div class="sbar"><span>9:41</span><span>5G ▮</span></div>${nav}${view}
+    <nav class="tabs" aria-label="Apps">${[['notes', 'Notes'], ['links', 'Links'], ['finance', 'Finance']].map(([id, l]) => `<button data-tab="${id}" aria-current="${P.tab === id && !P.open}">${I.tab[id]}${l}${P.unseen[id] ? '<span class="dot"></span>' : ''}</button>`).join('')}</nav>${toast}`;
+}
+screen.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const P = S.phone;
+  if (b.dataset.tab) { P.tab = b.dataset.tab; P.open = null; P.unseen[b.dataset.tab] = false; }
+  else if (b.dataset.open) P.open = b.dataset.open;
+  else if (b.dataset.act === 'back') P.open = null;
+  else if (b.dataset.act === 'p-add-acct') S.accounts.push({ id: 'p' + Date.now(), owner: 'partner', name: 'Brokerage', type: 'Taxable · Fidelity', balance: 12900, holdings: [['FXAIX', '58 shares', 12900]], txns: [] });
+  else if (b.dataset.act === 'open-toast') { const t = P.toast; P.toast = null; P.tab = t.kind === 'note' ? 'notes' : t.kind === 'collection' ? 'links' : 'finance'; P.unseen[P.tab] = false; P.open = t.kind === 'account' ? null : t.kind + ':' + t.id; }
+  else return;
+  renderPhone();
+});
+screen.addEventListener('input', e => {
+  if (e.target.id !== 'p-body') return;
+  const [, id] = S.phone.open.split(':'), n = S.notes.find(x => x.id === id); n.b = e.target.value; n.when = 'Just now';
+  syncTo('mac');
+});
+screen.addEventListener('focusout', e => { if (e.target.id === 'p-body') setTimeout(renderPhone, 0); });
+screen.addEventListener('submit', e => {
+  e.preventDefault(); const v = document.getElementById('p-link').value.trim(); if (!v) return;
+  const [, id] = S.phone.open.split(':'), c = find('collection', id), url = /^https?:\/\//.test(v) ? v : 'https://' + v, d = url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+  c.links.unshift([url, d.split('.')[0].replace(/^./, x => x.toUpperCase()) + ' · fetched title', 'partner']); renderPhone(); syncTo('mac');
+});
+
+renderMac(); renderPhone();
+})();
+</script>
+</body>
+</html>

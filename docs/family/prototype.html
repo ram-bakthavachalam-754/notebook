@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Family Controls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: a desk with two devices side by side. The parent's Mac window follows the System Settings
+   idiom (members in the sidebar, Apps / Agent / Devices tabs). The kid's iPhone is rounded and warm,
+   with a tab bar for each app the parent turned on. Agent checks are shown underneath. */
+:root {
+  --desk: #e8e7ee; --win: #ffffff; --sidebar: #f2f1f6; --group: #f6f6f8; --row: #ffffff; --line: #e3e2e8;
+  --text: #1d1d1f; --text2: #6b6b72; --text3: #a2a2a8;
+  --blue: #0a72f0; --blue-soft: rgba(10,114,240,.12);
+  --green: #1f9d47; --amber: #c77700; --red: #d93a30; --care: #7a5af5;
+  --seg: #e9e9ee; --seg-on: #ffffff;
+  --shadow: 0 30px 60px -20px rgba(30,25,60,.28), 0 0 0 .5px rgba(0,0,0,.12);
+  --kid-surface: #fffaf6; --kid-bubble: #f3efe9; --kid-card: #ffffff; --bezel: #1b1b1f; --paper-line: #d9e4f5;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-kid: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #121116; --win: #1f1f22; --sidebar: #28272c; --group: #262529; --row: #2d2c31; --line: #3a393f;
+  --text: #f4f4f6; --text2: #a5a5ad; --text3: #6f6f77; --blue: #3b93ff; --blue-soft: rgba(59,147,255,.18);
+  --green: #42c96b; --amber: #ffb340; --red: #ff6b61; --care: #a48bff; --seg: #3a393f; --seg-on: #5a5960;
+  --shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 .5px rgba(255,255,255,.12);
+  --kid-surface: #1d1a18; --kid-bubble: #2c2825; --kid-card: #26221f; --bezel: #050506; --paper-line: #3a4458; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #121116; --win: #1f1f22; --sidebar: #28272c; --group: #262529; --row: #2d2c31; --line: #3a393f;
+  --text: #f4f4f6; --text2: #a5a5ad; --text3: #6f6f77; --blue: #3b93ff; --blue-soft: rgba(59,147,255,.18);
+  --green: #42c96b; --amber: #ffb340; --red: #ff6b61; --care: #a48bff; --seg: #3a393f; --seg-on: #5a5960;
+  --shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 .5px rgba(255,255,255,.12);
+  --kid-surface: #1d1a18; --kid-bubble: #2c2825; --kid-card: #26221f; --bezel: #050506; --paper-line: #3a4458; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text); font-family: var(--font-ui); font-size: 13px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--blue-soft); outline-offset: 1px; box-shadow: 0 0 0 1px var(--blue); }
+
+.intro { max-width: 1240px; margin: 0 auto 22px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.intro h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+.intro p { margin: 4px 0 0; color: var(--text2); max-width: 70ch; font-size: 13.5px; }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); border: 1px solid var(--line); padding: 4px 9px; border-radius: 99px; background: var(--win); }
+
+.stage { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 32px; align-items: start; }
+@media (max-width: 1020px) { .stage { grid-template-columns: minmax(0,1fr); } .phone-wrap { justify-self: center; } }
+.device-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin: 0 0 10px 4px; }
+
+/* ---------- Mac window ---------- */
+.mac-wrap { position: relative; min-width: 0; }
+.mac { background: var(--win); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.titlebar { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--sidebar); }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; display: block; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.titlebar .ttl { font-weight: 600; font-size: 13px; white-space: nowrap; }
+.titlebar .crumb { color: var(--text2); font-weight: 400; }
+.titlebar .spacer { flex: 1; }
+.sync { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sync b { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+@media (max-width: 520px) { .sync { display: none; } }
+.body { display: grid; grid-template-columns: 216px minmax(0,1fr); min-height: 0; }
+@media (max-width: 720px) { .body { grid-template-columns: minmax(0,1fr); } }
+
+.side { background: var(--sidebar); border-right: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 720px) { .side { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; overflow-x: auto; } .side .sec { display: none; } .side .member { flex: 0 0 auto; width: auto; } .side .member small { display: none; } }
+.side .sec { font-size: 11px; font-weight: 600; color: var(--text3); padding: 10px 8px 4px; }
+.member { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; border: 0; background: none; text-align: left; width: 100%; }
+.member:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.member[aria-current="true"] { background: var(--blue); color: #fff; }
+.member[aria-current="true"] small { color: rgba(255,255,255,.8); }
+.member > span { display: flex; flex-direction: column; min-width: 0; }
+.member small { color: var(--text2); font-size: 11px; white-space: nowrap; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: 0 0 auto; font-style: normal; }
+.badge { margin-left: auto; font-size: 10.5px; font-weight: 700; background: var(--amber); color: #fff; border-radius: 99px; padding: 1px 7px; font-style: normal; }
+
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.pane-head { padding: 18px 26px 0; display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 520px) { .pane-head { padding: 16px 14px 0; } }
+.scroll { overflow: auto; padding: 18px 26px 26px; max-height: 640px; display: flex; flex-direction: column; gap: 22px; }
+@media (max-width: 1020px) { .scroll { max-height: none; } }
+@media (max-width: 520px) { .scroll { padding: 16px 14px; } }
+.hero { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.hero .avatar { width: 48px; height: 48px; font-size: 20px; }
+.hero h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.hero p { margin: 2px 0 0; color: var(--text2); }
+.hero .grow { flex: 1; min-width: 160px; }
+.tabs { align-self: flex-start; }
+.tabs button { padding: 5px 16px; font-size: 12.5px; }
+
+.group h3 { font-size: 13px; font-weight: 600; margin: 0 0 4px 2px; }
+.group .hint { color: var(--text2); margin: 0 0 9px 2px; font-size: 12px; max-width: 72ch; }
+.card { background: var(--group); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 44px; flex-wrap: wrap; }
+.row + .row { border-top: 1px solid var(--line); }
+.row.sub { padding-left: 50px; background: color-mix(in srgb, var(--row) 55%, var(--group)); }
+.row .label { flex: 1; min-width: 160px; display: flex; flex-direction: column; }
+.row .label small { color: var(--text2); font-size: 11.5px; }
+.row.off .label, .row.off .ico { opacity: .5; }
+.ico { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 700; flex: 0 0 auto; font-style: normal; }
+.ico.big { width: 30px; height: 30px; border-radius: 8px; font-size: 15px; }
+.info { display: flex; align-items: center; gap: 6px; color: var(--text2); font-size: 12px; }
+.info svg { width: 12px; height: 12px; fill: currentColor; flex: 0 0 auto; }
+
+.seg { display: inline-flex; background: var(--seg); border-radius: 8px; padding: 2px; gap: 2px; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; }
+.seg button { border: 0; background: none; padding: 4px 11px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--text2); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--seg-on); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.seg.topic button[aria-pressed="true"][data-v="allow"] { color: var(--green); }
+.seg.topic button[aria-pressed="true"][data-v="careful"] { color: var(--amber); }
+.seg.topic button[aria-pressed="true"][data-v="block"] { color: var(--red); }
+
+.switch { position: relative; width: 38px; height: 22px; flex: 0 0 auto; display: inline-block; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--seg); transition: background .18s; pointer-events: none; }
+.switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s; }
+.switch input:checked + span { background: var(--green); }
+.switch input:checked + span::after { transform: translateX(16px); }
+.switch input:focus-visible + span { box-shadow: 0 0 0 3px var(--blue-soft); }
+
+.field { background: var(--row); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--row); }
+.stepper button { border: 0; background: none; width: 26px; height: 26px; font-size: 15px; color: var(--text2); }
+.stepper output { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.rule { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.rule + .rule { border-top: 1px solid var(--line); }
+.rule p { margin: 0; flex: 1; min-width: 0; }
+.rule .x { border: 0; background: none; color: var(--text3); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 5px; }
+.rule .x:hover { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.rule-add { display: flex; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--line); background: var(--row); }
+.rule-add input { flex: 1; min-width: 0; border: 0; background: none; outline: none; }
+.btn { border: 1px solid var(--line); background: var(--row); border-radius: 6px; padding: 5px 12px; font-weight: 500; font-size: 12.5px; }
+.btn:hover:not(:disabled) { border-color: var(--text3); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn:disabled { opacity: .45; }
+.btn.ghost { border-color: transparent; background: none; color: var(--blue); }
+.examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { border: 1px dashed var(--line); background: none; border-radius: 99px; padding: 3px 10px; font-size: 12px; color: var(--text2); }
+.chip:hover { border-color: var(--blue); color: var(--blue); }
+.refusal { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; padding: 12px; }
+@media (max-width: 560px) { .refusal { grid-template-columns: minmax(0,1fr); } }
+.refusal textarea { width: 100%; resize: vertical; min-height: 64px; }
+.preview-bubble { font-family: var(--font-kid); font-size: 14px; background: var(--kid-bubble); border-radius: 18px 18px 18px 6px; padding: 10px 14px; align-self: start; }
+.preview-cap { font-size: 11px; color: var(--text2); margin-bottom: 4px; display: block; }
+
+.device { display: flex; align-items: center; gap: 12px; padding: 10px 12px; flex-wrap: wrap; }
+.device + .device { border-top: 1px solid var(--line); }
+.device .label { flex: 1; min-width: 160px; display: flex; flex-direction: column; }
+.device .label small { color: var(--text2); }
+.status { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.status.ok { color: var(--green); background: color-mix(in srgb, var(--green) 13%, transparent); }
+.status.wait { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.dev-ico { width: 30px; height: 30px; border-radius: 8px; background: var(--seg); display: grid; place-items: center; color: var(--text2); font-style: normal; }
+.dev-ico svg { width: 16px; height: 16px; fill: currentColor; }
+
+.publishbar { border-top: 1px solid var(--line); padding: 10px 16px; display: flex; align-items: center; gap: 10px; background: var(--sidebar); flex-wrap: wrap; }
+.publishbar .pmsg { flex: 1; color: var(--text2); min-width: 160px; }
+.publishbar .pmsg b { color: var(--text); font-weight: 600; }
+.partner { padding: 40px 26px; display: flex; flex-direction: column; gap: 12px; max-width: 540px; }
+.partner h2 { margin: 0; font-size: 20px; }
+.partner p { margin: 0; color: var(--text2); font-size: 13.5px; }
+
+.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.25); display: grid; place-items: start center; padding-top: 70px; z-index: 5; }
+.sheet { background: var(--win); border-radius: 12px; box-shadow: var(--shadow); width: min(420px, calc(100% - 24px)); padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.sheet h3 { margin: 0; font-size: 15px; }
+.sheet p { margin: 0; color: var(--text2); }
+.qr-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.qr-row canvas { width: 132px; height: 132px; border-radius: 8px; background: #fff; padding: 8px; border: 1px solid var(--line); image-rendering: pixelated; }
+.code { font-family: var(--font-mono); font-size: 15px; letter-spacing: .06em; background: var(--group); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; user-select: all; }
+
+/* ---------- Phone ---------- */
+.phone-wrap { width: min(360px, 100%); }
+.phone { background: var(--bezel); border-radius: 50px; padding: 11px; box-shadow: var(--shadow); }
+.screen { --kid: #f2683c; background: var(--kid-surface); border-radius: 40px; height: 740px; overflow: hidden; display: flex; flex-direction: column; position: relative; font-family: var(--font-kid); }
+.island { width: 104px; height: 30px; background: #000; border-radius: 20px; margin: 10px auto 0; flex: 0 0 auto; }
+.statusbar { position: absolute; top: 15px; left: 30px; right: 28px; display: flex; justify-content: space-between; font-family: var(--font-ui); font-weight: 600; font-size: 13px; pointer-events: none; }
+.kid-head { display: flex; align-items: center; gap: 10px; padding: 12px 18px 8px; flex: 0 0 auto; }
+.kid-head .avatar { width: 38px; height: 38px; font-size: 17px; background: var(--kid); }
+.kid-head h4 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.1; }
+.kid-head .grow { flex: 1; min-width: 0; }
+.kid-head small { color: var(--text2); font-size: 12.5px; font-weight: 700; }
+.round { border: 0; background: var(--kid-bubble); width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--text2); flex: 0 0 auto; }
+.round svg { width: 18px; height: 18px; fill: currentColor; }
+.round.add { background: var(--kid); color: #fff; }
+.view { flex: 1; overflow-y: auto; padding: 4px 16px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.tabbar { display: flex; border-top: 1px solid var(--line); background: var(--kid-surface); padding: 6px 6px 18px; flex: 0 0 auto; }
+.tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; color: var(--text3); padding: 4px 0; }
+.tabbar button svg { width: 22px; height: 22px; fill: currentColor; }
+.tabbar button[aria-current="true"] { color: var(--kid); }
+.kcard { background: var(--kid-card); border-radius: 18px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 4px; }
+button.kcard { border: 0; text-align: left; font: inherit; }
+.kcard b { font-size: 15.5px; }
+.kcard p { margin: 0; color: var(--text2); font-size: 13.5px; }
+.kcard .meta { font-size: 11.5px; font-weight: 700; color: var(--text3); }
+.ktag { align-self: flex-start; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--kid) 15%, transparent); color: var(--kid); }
+.templates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tpl { border: 0; border-radius: 16px; padding: 12px; text-align: left; font: inherit; font-weight: 800; font-size: 14px; color: #fff; display: flex; flex-direction: column; gap: 2px; }
+.tpl small { font-weight: 600; opacity: .9; font-size: 11.5px; }
+.kbtn { border: 0; border-radius: 99px; padding: 9px 16px; font: inherit; font-weight: 800; font-size: 14px; background: var(--kid); color: #fff; }
+.kbtn.soft { background: var(--kid-bubble); color: var(--text); }
+.kbtn:disabled { opacity: .45; }
+.back { border: 0; background: none; color: var(--kid); font: inherit; font-weight: 800; font-size: 14px; padding: 0; align-self: flex-start; }
+.note-page { background: var(--kid-card); border-radius: 18px; padding: 14px; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 8px; }
+.note-page h5 { margin: 0; font-size: 20px; font-weight: 800; }
+.note-page p { margin: 0; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+.photo { border-radius: 12px; aspect-ratio: 4 / 3; max-width: 100%; background: repeating-linear-gradient(0deg, transparent 0 13px, var(--paper-line) 13px 14px), #fdfdf8; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.photo::after { content: "3/8 + 2/8 =      5/6 − 1/6 ="; position: absolute; left: 12px; top: 18px; right: 8px; font-family: "Comic Sans MS", var(--font-kid); font-size: 13px; color: #36507a; white-space: pre-wrap; line-height: 28px; }
+.photo.small { width: 56px; height: 56px; aspect-ratio: auto; border-radius: 10px; }
+.photo.small::after { font-size: 6px; line-height: 9px; top: 6px; left: 5px; }
+.photo.moon { background: radial-gradient(circle at 30% 40%, rgba(0,0,0,.18) 0 7%, transparent 8%), radial-gradient(circle at 58% 62%, rgba(0,0,0,.14) 0 10%, transparent 11%), radial-gradient(circle at 64% 32%, rgba(0,0,0,.12) 0 5%, transparent 6%), radial-gradient(circle at 50% 50%, #e9e6dc 0 34%, transparent 35%), radial-gradient(circle at 50% 50%, #1b2340, #070a16); border-color: #10142a; }
+.photo.moon::after { content: none; }
+.next { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 92%; }
+.next button { border: 0; border-radius: 99px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 13px; background: color-mix(in srgb, var(--kid) 13%, transparent); color: var(--kid); text-align: left; }
+.next button:hover { background: color-mix(in srgb, var(--kid) 22%, transparent); }
+.wonder { background: linear-gradient(135deg, #1d2a5c, #3b2a6b); color: #fff; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.wonder small { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+.wonder b { font-size: 18px; line-height: 1.25; }
+.wonder button { align-self: flex-start; border: 0; border-radius: 99px; padding: 7px 14px; font: inherit; font-weight: 800; font-size: 13px; background: #fff; color: #2a2160; }
+.sug .cat { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.prompt { background: color-mix(in srgb, var(--kid) 13%, var(--kid-card)); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.prompt h5 { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.2; text-wrap: balance; }
+.moods { display: flex; flex-wrap: wrap; gap: 6px; }
+.moods button { border: 0; border-radius: 99px; padding: 5px 11px; font: inherit; font-weight: 800; font-size: 12.5px; background: var(--kid-card); color: var(--text2); box-shadow: 0 0 0 1px var(--line); }
+.moods button[aria-pressed="true"] { background: var(--kid); color: #fff; box-shadow: none; }
+.prompt textarea { width: 100%; border: 0; border-radius: 14px; padding: 10px 12px; font: inherit; font-size: 15px; background: var(--kid-card); resize: none; min-height: 76px; outline: none; }
+.prompt textarea:focus { box-shadow: 0 0 0 2px var(--kid); }
+.private { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text2); }
+.private svg { width: 12px; height: 12px; fill: currentColor; }
+.goal .bar { height: 12px; border-radius: 99px; background: var(--kid-bubble); overflow: hidden; margin: 6px 0 4px; }
+.goal .bar i { display: block; height: 100%; border-radius: 99px; background: var(--kid); transition: width .3s; }
+.goal .amt { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.goal .acts { display: flex; gap: 6px; margin-top: 6px; }
+.goal .acts button { border: 0; border-radius: 99px; padding: 5px 12px; font: inherit; font-weight: 800; font-size: 13px; background: color-mix(in srgb, var(--kid) 14%, transparent); color: var(--kid); }
+.allow-card { background: var(--kid); color: #fff; border-radius: 20px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+.allow-card b { font-size: 26px; font-variant-numeric: tabular-nums; }
+.allow-card span { font-weight: 700; font-size: 13.5px; line-height: 1.3; }
+.acct { display: flex; justify-content: space-between; align-items: baseline; font-variant-numeric: tabular-nums; }
+.acct b { font-size: 18px; }
+
+.welcome h5 { font-size: 24px; line-height: 1.15; margin: 4px 0 6px; font-weight: 800; text-wrap: balance; }
+.welcome p { margin: 0 0 12px; color: var(--text2); font-size: 14px; }
+.sugs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sug { border: 0; text-align: left; background: var(--kid-card); border-radius: 16px; padding: 10px 12px; font: inherit; font-size: 13.5px; font-weight: 700; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 4px; }
+.sug small { font-weight: 500; color: var(--text2); font-size: 12px; }
+.sug:hover { box-shadow: 0 0 0 2px var(--kid); }
+.bub { max-width: 86%; padding: 10px 14px; font-size: 15px; line-height: 1.4; border-radius: 20px; animation: pop .22s ease-out; display: flex; flex-direction: column; gap: 8px; }
+.bub.me { align-self: flex-end; background: var(--kid); color: #fff; border-bottom-right-radius: 6px; }
+.bub.ai { align-self: flex-start; background: var(--kid-bubble); border-bottom-left-radius: 6px; }
+.bub.ai.blocked { background: color-mix(in srgb, var(--care) 12%, var(--kid-surface)); }
+.bub.ai.care { background: color-mix(in srgb, var(--care) 16%, var(--kid-surface)); }
+.bub .files { display: flex; gap: 6px; flex-wrap: wrap; }
+.bub .photo { width: 150px; }
+.filechip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.22); }
+.filechip svg { width: 14px; height: 14px; fill: currentColor; }
+.typing { align-self: flex-start; background: var(--kid-bubble); border-radius: 20px; padding: 12px 16px; display: flex; gap: 5px; }
+.typing i { width: 7px; height: 7px; background: var(--text3); border-radius: 50%; animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .3; transform: translateY(-2px); } }
+@keyframes pop { from { transform: scale(.96); opacity: .4; } }
+.composer { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); background: var(--kid-surface); position: relative; flex: 0 0 auto; }
+.composer form { display: flex; gap: 8px; align-items: center; }
+.composer input { flex: 1; min-width: 0; border: 0; background: var(--kid-bubble); border-radius: 99px; padding: 11px 16px; font-size: 15px; font-family: var(--font-kid); outline: none; }
+.composer input:focus { box-shadow: 0 0 0 2px var(--kid); }
+.send { border: 0; width: 42px; height: 42px; border-radius: 50%; background: var(--kid); color: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+.send svg { width: 18px; height: 18px; fill: currentColor; }
+.send:disabled { opacity: .4; }
+.clip { border: 0; width: 38px; height: 38px; border-radius: 50%; background: var(--kid-bubble); color: var(--text2); display: grid; place-items: center; flex: 0 0 auto; }
+.clip svg { width: 19px; height: 19px; fill: currentColor; }
+.pending { display: flex; gap: 8px; }
+.pchip { position: relative; }
+.pchip .x { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 20px; padding: 0; }
+.pfile { height: 56px; border-radius: 10px; background: var(--kid-card); box-shadow: 0 0 0 1px var(--line); display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 800; max-width: 150px; }
+.pfile svg { width: 16px; height: 16px; fill: var(--kid); flex: 0 0 auto; }
+.pfile span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu { position: absolute; bottom: 64px; left: 12px; background: var(--kid-card); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18), 0 0 0 1px var(--line); padding: 6px; display: flex; flex-direction: column; min-width: 190px; z-index: 3; animation: rise .18s ease-out; }
+.menu button { border: 0; background: none; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font: inherit; font-weight: 700; font-size: 14px; text-align: left; }
+.menu button:hover { background: var(--kid-bubble); }
+.menu svg { width: 18px; height: 18px; fill: var(--kid); }
+.left { font-size: 11.5px; color: var(--text2); text-align: center; font-weight: 700; }
+.kid-sheet { position: absolute; inset: auto 0 0 0; background: var(--win); border-radius: 26px 26px 40px 40px; padding: 18px 18px 26px; box-shadow: 0 -10px 40px rgba(0,0,0,.2); z-index: 4; animation: rise .25s ease-out; }
+@keyframes rise { from { transform: translateY(30px); opacity: 0; } }
+.kid-sheet h5 { margin: 0 0 4px; font-size: 19px; font-weight: 800; }
+.kid-sheet p { margin: 0 0 14px; color: var(--text2); font-size: 14px; }
+.kid-sheet .grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: -6px auto 12px; }
+.kid-sheet .kbtn { width: 100%; }
+.lockscreen { position: absolute; inset: 0; background: var(--kid-surface); z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 30px; }
+.lockscreen .face { width: 74px; height: 74px; border-radius: 22px; border: 3px solid var(--kid); display: grid; place-items: center; color: var(--kid); }
+.lockscreen .face svg { width: 40px; height: 40px; fill: currentColor; }
+.lockscreen h5 { margin: 0; font-size: 20px; font-weight: 800; }
+.empty-kid { color: var(--text2); text-align: center; padding: 40px 10px; font-size: 14px; }
+
+/* ---------- inspector ---------- */
+.inspect { max-width: 1240px; margin: 34px auto 0; }
+.inspect-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.inspect-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.inspect-head p { margin: 0; color: var(--text2); font-size: 12.5px; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 860px) { .steps { grid-template-columns: minmax(0,1fr); } }
+.step { background: var(--win); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.step .k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); }
+.step h4 { margin: 0; font-size: 14px; }
+.step ul { margin: 0; padding-left: 18px; color: var(--text2); display: flex; flex-direction: column; gap: 3px; }
+.verdict { align-self: flex-start; font-weight: 700; font-size: 12px; border-radius: 99px; padding: 2px 10px; }
+.v-allow { color: var(--green); background: color-mix(in srgb, var(--green) 13%, transparent); }
+.v-careful { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.v-block { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.v-care, .v-homework { color: var(--care); background: color-mix(in srgb, var(--care) 14%, transparent); }
+.v-idle { color: var(--text2); background: var(--seg); }
+.empty-step { color: var(--text2); margin: 0; }
+.foot { max-width: 1240px; margin: 18px auto 0; color: var(--text3); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="intro">
+  <div>
+    <h1>Family controls for Notebook</h1>
+    <p>Choose which parts of Notebook each child gets and how they work, then press Publish. The child's phone on the right updates without showing them any rules. Try each tab on the phone: Notes, Journal, Money and the agent.</p>
+  </div>
+  <nav aria-label="Prototypes" style="display:flex;gap:4px;flex-wrap:wrap;font-size:12.5px"><a href="app-prototype.html" style="color:var(--text2);text-decoration:none;padding:5px 11px;border-radius:99px;border:1px solid var(--line);background:var(--win)">Grown-up app</a><a href="kids-prototype.html" style="color:var(--text2);text-decoration:none;padding:5px 11px;border-radius:99px;border:1px solid var(--line);background:var(--win)">Kids app</a><a href="prototype.html" aria-current="page" style="color:var(--win);text-decoration:none;padding:5px 11px;border-radius:99px;background:var(--text)">Family controls</a><a href="sharing-prototype.html" style="color:var(--text2);text-decoration:none;padding:5px 11px;border-radius:99px;border:1px solid var(--line);background:var(--win)">Sharing</a><a href="design.html" style="color:var(--text2);text-decoration:none;padding:5px 11px;border-radius:99px;border:1px solid var(--line);background:var(--win)">Design doc</a></nav>
+</div>
+
+<div class="stage">
+  <div class="mac-wrap">
+    <p class="device-label">Your Mac · Notebook → Settings → Family</p>
+    <div class="mac" id="mac"></div>
+  </div>
+  <div class="phone-wrap">
+    <p class="device-label" id="phone-label">Kid's iPhone</p>
+    <div class="phone"><div class="screen" id="screen"></div></div>
+  </div>
+</div>
+
+<section class="inspect">
+  <div class="inspect-head">
+    <h2>Behind the scenes for the last agent question</h2>
+    <p id="inspect-sub">Ask something in the phone's agent tab to see each check.</p>
+  </div>
+  <div class="steps" id="steps"></div>
+</section>
+<p class="foot">Example names and data. The agent checks here use keyword matching so the prototype works offline; in the app, a small AI model reads each question, attachment and answer against the published rules.</p>
+
+<script>
+(function () {
+'use strict';
+const SVG = {
+  lock: '<svg viewBox="0 0 12 12"><path d="M3.5 5V3.6a2.5 2.5 0 0 1 5 0V5h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 0h3V3.6a1.5 1.5 0 0 0-3 0z"/></svg>',
+  gear: '<svg viewBox="0 0 20 20"><path d="M10 6.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM8.6 1h2.8l.5 2.3 1.6.7 2-1.3 2 2-1.3 2 .7 1.6 2.3.5v2.8l-2.3.5-.7 1.6 1.3 2-2 2-2-1.3-1.6.7-.5 2.3H8.6l-.5-2.3-1.6-.7-2 1.3-2-2 1.3-2-.7-1.6L.8 11.4V8.6l2.3-.5.7-1.6-1.3-2 2-2 2 1.3 1.6-.7z"/></svg>',
+  plus: '<svg viewBox="0 0 20 20"><path d="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z"/></svg>',
+  send: '<svg viewBox="0 0 20 20"><path d="M10 2l7 7-1.4 1.4L11 5.8V18H9V5.8L4.4 10.4 3 9z"/></svg>',
+  clip: '<svg viewBox="0 0 20 20"><path d="M13.5 4.5a2.5 2.5 0 0 0-3.5 0L4.6 9.9a4 4 0 0 0 5.6 5.7l5.2-5.2 1.1 1.1-5.2 5.2a5.5 5.5 0 0 1-7.8-7.8L8.9 3.4a4 4 0 0 1 5.7 5.7l-5.4 5.4a2.5 2.5 0 0 1-3.5-3.5L10.8 6l1.1 1-5.1 5.1a1 1 0 0 0 1.4 1.4l5.3-5.4a2.5 2.5 0 0 0 0-3.6z"/></svg>',
+  camera: '<svg viewBox="0 0 20 20"><path d="M7 3h6l1.5 2H17a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>',
+  photos: '<svg viewBox="0 0 20 20"><path d="M3 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 9.5V14h12v-2l-3-3-4 4-2-2zM7 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>',
+  file: '<svg viewBox="0 0 20 20"><path d="M5 2h7l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 1.5V7h3.5zM7 10v1.5h6V10zm0 3v1.5h6V13z"/></svg>',
+  face: '<svg viewBox="0 0 40 40"><path d="M6 4h6v3H7v5H4V6a2 2 0 0 1 2-2zm22 0h6a2 2 0 0 1 2 2v6h-3V7h-5zM4 28h3v5h5v3H6a2 2 0 0 1-2-2zm29 0h3v6a2 2 0 0 1-2 2h-6v-3h5zM14 14h3v4h-3zm9 0h3v4h-3zm-4 1h2v7h-3v-2h1zm-5 11h2a4.5 4.5 0 0 0 7 0h2a6.5 6.5 0 0 1-11 0z"/></svg>',
+  tab: {
+    notes: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm2 7v2h8v-2zm0 4v2h8v-2zm0-8v2h5V6z"/></svg>',
+    journal: '<svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5zm3 4v2h7V7zm0 4v2h7v-2zM3 6h1v2H3zm0 5h1v2H3zm0 5h1v2H3z"/></svg>',
+    links: '<svg viewBox="0 0 24 24"><path d="M10.6 13.4a4 4 0 0 1 0-5.7l3-3a4 4 0 0 1 5.7 5.7l-1.6 1.6-1.4-1.4 1.6-1.6a2 2 0 0 0-2.9-2.9l-3 3a2 2 0 0 0 0 2.9zm2.8-2.8a4 4 0 0 1 0 5.7l-3 3a4 4 0 0 1-5.7-5.7l1.6-1.6 1.4 1.4-1.6 1.6a2 2 0 0 0 2.9 2.9l3-3a2 2 0 0 0 0-2.9z"/></svg>',
+    money: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm1 3h-2v1.1c-1.7.4-2.8 1.5-2.8 3 0 1.9 1.6 2.6 3.4 3.1 1.4.4 2 .7 2 1.4 0 .6-.6 1.1-1.6 1.1-1.1 0-1.9-.5-2.1-1.4l-1.9.5c.3 1.4 1.4 2.4 3 2.7V19h2v-1.1c1.8-.3 2.9-1.5 2.9-3 0-2-1.6-2.7-3.4-3.2-1.4-.4-2-.7-2-1.3 0-.5.6-1 1.5-1 .9 0 1.6.4 1.8 1.2l1.9-.5c-.3-1.2-1.3-2.1-2.7-2.4z"/></svg>',
+    agent: '<svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zm6 12l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></svg>'
+  }
+};
+const T = '︎';
+const TOPICS = [
+  { id: 'school', name: 'Math, history & languages', desc: 'Numbers, the past, words and places', icon: '✎' + T, color: '#0a84ff', kw: ['math','number','zero','history','pyramid','rome','language','infinity','calendar','leap year','fraction'] },
+  { id: 'science', name: 'Science & nature', desc: 'Space, animals, how things work', icon: '☀' + T, color: '#30b0c7', kw: ['sky','planet','space','moon','star','black hole','animal','bee','cat','dinosaur','volcano','science','ocean','airplane','why is','how does'] },
+  { id: 'games', name: 'Games & hobbies', desc: 'Minecraft, drawing, sports', icon: '♟' + T, color: '#34c759', kw: ['game','minecraft','roblox','fortnite','robux','lego','draw','soccer'] },
+  { id: 'feelings', name: 'Feelings & friends', desc: 'Worries, friendships, being kind', icon: '☺' + T, color: '#ff9f0a', kw: ['sad','worried','friend','lonely','bully','angry','nervous'] },
+  { id: 'health', name: 'Health & body', desc: 'Growing up, sleep, being sick', icon: '✚' + T, color: '#ff375f', kw: ['body','sick','puberty','doctor','medicine','sleep'] },
+  { id: 'relationships', name: 'Crushes & dating', desc: 'Liking someone, relationships', icon: '♥' + T, color: '#ff2d55', kw: ['crush','dating','boyfriend','girlfriend','kiss'] },
+  { id: 'scary', name: 'Scary stuff', desc: 'Horror, ghosts, creepy stories', icon: '☾' + T, color: '#5e5ce6', kw: ['scary','scariest','horror','ghost','creepy','zombie'] },
+  { id: 'violence', name: 'Violence & weapons', desc: 'Fighting, guns, war', icon: '⚔' + T, color: '#8e8e93', kw: ['gun','weapon','fight','kill','war','bomb'] },
+  { id: 'substances', name: 'Drugs, alcohol & vaping', desc: 'What they are, risks', icon: '☁' + T, color: '#a2845e', kw: ['vape','vaping','alcohol','beer','drunk','drug','weed','smoke','smoking'] },
+  { id: 'news', name: 'News & politics', desc: 'Current events, elections', icon: '☰' + T, color: '#64d2ff', kw: ['election','president','politics','news','government'] },
+  { id: 'gambling', name: 'Gambling', desc: 'Betting, casinos, loot boxes', icon: '♦' + T, color: '#bf5af2', kw: ['gamble','gambling','bet','casino','lottery','loot box'] },
+  { id: 'personal', name: 'Sharing personal info', desc: 'Address, school name, passwords', icon: '#', color: '#636366', kw: ['my address','password','phone number','where i live','my school is'] },
+  { id: 'homework', name: 'Doing homework for them', desc: 'Explains the idea instead of giving answers', icon: '✓' + T, color: '#8e8e93', locked: 'explain', kw: ['homework','worksheet','answer key','write my essay','essay for me','solve this','do my','assignment','test answers'] },
+  { id: 'sexual', name: 'Sexual content', desc: 'Always blocked for kids', icon: '18', color: '#3a3a3c', locked: 'block', kw: ['sex','porn','nude','naked'] },
+  { id: 'selfharm', name: 'Self-harm & crisis', desc: 'Always answered with care and help', icon: '☂' + T, color: '#7a5af5', locked: 'care', kw: ['hurt myself','kill myself','suicide','self harm','want to die','end my life'] }
+];
+const PRESETS = {
+  little: { label: 'Under 10', t: { school:'allow', science:'allow', games:'allow', feelings:'allow', health:'careful', relationships:'block', scary:'block', violence:'block', substances:'block', news:'careful', gambling:'block', personal:'block' } },
+  tween:  { label: '10–13',    t: { school:'allow', science:'allow', games:'allow', feelings:'allow', health:'careful', relationships:'careful', scary:'careful', violence:'block', substances:'careful', news:'careful', gambling:'block', personal:'block' } },
+  teen:   { label: 'Teen',     t: { school:'allow', science:'allow', games:'allow', feelings:'allow', health:'allow', relationships:'careful', scary:'allow', violence:'careful', substances:'careful', news:'allow', gambling:'block', personal:'block' } }
+};
+const APPS = [
+  { id: 'notes', name: 'Notes', kid: 'Notes', desc: 'Ideas, questions, lists', color: '#d97706' },
+  { id: 'journal', name: 'Journal', kid: 'Journal', desc: 'A private daily diary', color: '#ec407a' },
+  { id: 'links', name: 'Links', kid: 'Links', desc: 'Saved web links in collections', color: '#0891b2' },
+  { id: 'money', name: 'Finance', kid: 'Money', desc: 'Allowance and savings goals', color: '#16a34a' },
+  { id: 'agent', name: 'AI Agent', kid: 'Ask', desc: 'Curious questions, photos and files', color: '#ab47bc' }
+];
+const STOP = new Set(['about','with','that','this','them','they','dont','don\'t','give','help','only','never','always','tell','answers','answer','should','would','their','from','your','when','what','into','just','instead','avoid','make','sure','more','than','talk','things','stuff']);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const money = n => '$' + n.toFixed(n % 1 ? 2 : 0);
+const getPath = (o, p) => p.split('.').reduce((v, k) => v?.[k], o);
+const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.reduce((x, k) => x[k], o)[last] = v; };
+
+function policy(preset, extra) {
+  return Object.assign({
+    preset, topics: clone(PRESETS[preset].t), style: 'wonder', rules: [], refusal: '',
+    provider: 'anthropic', model: 'claude-haiku-5-5', web: false, editNotes: true, daily: 40, quiet: true,
+    attach: { camera: true, library: true, files: false },
+    apps: { notes: { on: true, photos: true, templates: true }, journal: { on: true, reminder: true, time: '7:30 PM' }, money: { on: true, mode: 'savings', allowance: 5 }, links: { on: false }, agent: { on: true } },
+    sharing: 'family', lock: false
+  }, extra);
+}
+const kids = {
+  sam: { id: 'sam', name: 'Sam', age: 9, color: '#f2683c', device: [{ name: "Sam's iPhone", kind: 'phone' }],
+    draft: policy('little', { rules: ['No video game cheats or hacks'], refusal: "That's a good one to ask Dad about. Want help with something else?" }),
+    notes: [{ t: 'Space facts', b: 'Jupiter has 95 moons!\nSaturn could float in a giant bathtub.', tag: 'Big idea', photo: false }, { t: 'Things I wonder', b: 'Why do cats purr?\nHow deep is the ocean?', tag: 'I wonder', photo: false }],
+    journal: [{ d: 'Sat, Oct 18', mood: 'Great', b: 'Went to the park and played soccer. I scored two goals!' }],
+    goals: [{ name: 'LEGO space shuttle', target: 60, saved: 34 }], accounts: [['Checking', 18], ['Savings', 34]], links: [['Moon facts for kids', 'nasa.gov', 'You']] },
+  alex: { id: 'alex', name: 'Alex', age: 13, color: '#11a08c', device: [{ name: "Alex's iPhone", kind: 'phone' }, { name: "Alex's MacBook Air", kind: 'mac' }],
+    draft: policy('tween', { style: 'think', web: true, daily: 60, attach: { camera: true, library: true, files: true }, rules: ['No celebrity gossip'], refusal: "I can't help with that one. Talk to Dad if you're curious.",
+      apps: { notes: { on: true, photos: true, templates: false }, journal: { on: true, reminder: false, time: '8:00 PM' }, money: { on: true, mode: 'full', allowance: 10 }, links: { on: true }, agent: { on: true } }, lock: true }),
+    notes: [{ t: 'Rome questions', b: 'Why did Rome fall?\nHow did aqueducts carry water uphill?', tag: 'I wonder', photo: false }, { t: 'Reading log', b: 'The Hobbit, chapter 6. Bilbo finds the ring.', tag: 'Reading', photo: false }],
+    journal: [{ d: 'Fri, Oct 17', mood: 'Okay', b: 'Math test was hard. Practice tomorrow.' }],
+    goals: [{ name: 'New headphones', target: 80, saved: 52 }, { name: 'Summer camp fund', target: 200, saved: 65 }], accounts: [['Checking', 120], ['Savings', 340]], links: [['How Roman aqueducts worked', 'youtube.com', 'You'], ['Veritasium', 'youtube.com', 'Dad']] }
+};
+for (const k of Object.values(kids)) Object.assign(k, { published: clone(k.draft), version: k.id === 'sam' ? 7 : 4, devStatus: 'ok', used: k.id === 'sam' ? 12 : 9, chat: [], pending: [], last: null, tab: 'agent', openNote: null, noteMenu: false, mood: 'Good', unlocked: false });
+const state = { sel: 'sam', phoneKid: 'sam', macTab: 'apps', enroll: false, kidSheet: false, attachMenu: false, typing: false };
+
+/* ---------- diff ---------- */
+function leafDiff(a, b) {
+  if (Array.isArray(a) || Array.isArray(b) || typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return JSON.stringify(a) === JSON.stringify(b) ? 0 : 1;
+  let n = 0; for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) if (key !== 'preset') n += leafDiff(a[key], b[key]);
+  return n;
+}
+const changes = k => leafDiff(k.draft, k.published);
+const pmsg = (k, n) => n ? `<b>${n} unpublished change${n > 1 ? 's' : ''}.</b> ${k.name}'s devices still use v${k.version}.` : `All changes published. ${k.name}'s devices use v${k.version}.`;
+
+/* ---------- Mac window ---------- */
+const mac = document.getElementById('mac');
+const sw = (path, on, label) => `<label class="switch"><input type="checkbox" id="sw-${path.replace(/\./g, '-')}" data-path="${path}"${on ? ' checked' : ''} aria-label="${esc(label)}"><span></span></label>`;
+function appsTab(k) {
+  const p = k.draft, a = p.apps;
+  const head = (app, extra) => `<div class="row${a[app.id].on ? '' : ' off'}"><i class="ico big" style="background:${app.color}">${SVG.tab[app.id].replace('<svg', '<svg width="17" height="17" fill="#fff"')}</i><span class="label">${app.name}${app.kid !== app.name ? ` <small>Shown to ${k.name} as “${app.kid}”</small>` : `<small>${app.desc}</small>`}</span>${extra || ''}${sw('apps.' + app.id + '.on', a[app.id].on, 'Show ' + app.name)}</div>`;
+  const [notes, journal, links, fin, agent] = ['notes', 'journal', 'links', 'money', 'agent'].map(id => APPS.find(x => x.id === id));
+  return `
+    <div class="group"><h3>What ${k.name} can open</h3>
+      <p class="hint">Apps you turn off disappear from ${k.name}'s devices. They aren't told why.</p>
+      <div class="card">
+        ${head(notes)}
+        ${a.notes.on ? `<div class="row sub"><span class="label">Photos in notes<small>Add pictures from the camera or library.</small></span>${sw('apps.notes.photos', a.notes.photos, 'Photos in notes')}</div>
+        <div class="row sub"><span class="label">Kid templates<small>I wonder, Reading log, Big idea, Checklist.</small></span>${sw('apps.notes.templates', a.notes.templates, 'Kid templates')}</div>` : ''}
+      </div></div>
+    <div class="group"><div class="card">
+        ${head(journal)}
+        ${a.journal.on ? `<div class="row sub"><span class="label">Evening reminder<small>A gentle nudge to write about the day.</small></span>
+          <select class="field" id="journal-time" data-sel="apps.journal.time"${a.journal.reminder ? '' : ' disabled'}>${['7:00 PM','7:30 PM','8:00 PM','8:30 PM'].map(t => `<option${a.journal.time === t ? ' selected' : ''}>${t}</option>`).join('')}</select>${sw('apps.journal.reminder', a.journal.reminder, 'Evening reminder')}</div>
+        <div class="row sub"><span class="info">${SVG.lock}${k.name}'s journal is private. It stays in ${k.name}'s iCloud and you can't read it.</span></div>` : ''}
+      </div></div>
+    <div class="group"><div class="card">
+        ${head(links)}
+        ${a.links.on ? `<div class="row sub"><span class="label">Collections ${k.name} can share<small>Follows the sharing setting below.</small></span></div>` : ''}
+      </div></div>
+    <div class="group"><div class="card">
+        ${head(fin)}
+        ${a.money.on ? `<div class="row sub"><span class="label">What ${k.name} sees<small>${a.money.mode === 'savings' ? 'Savings goals and allowance only.' : 'Accounts and spending too. No investing, trading or bank links.'}</small></span>
+          <div class="seg" role="group" aria-label="Finance mode">${[['savings','Savings goals'],['full','Accounts & spending']].map(([v, l]) => `<button data-money-mode="${v}" aria-pressed="${a.money.mode === v}">${l}</button>`).join('')}</div></div>
+        <div class="row sub"><span class="label">Weekly allowance<small>Shown on ${k.name}'s Money tab every Saturday.</small></span><div class="stepper"><button data-act="allow-" aria-label="Less">−</button><output>${money(a.money.allowance)}</output><button data-act="allow+" aria-label="More">+</button></div></div>` : ''}
+      </div></div>
+    <div class="group"><div class="card">
+        ${head(agent)}
+        ${a.agent.on ? `<div class="row sub"><span class="label">Topics, rules, AI connection and photo uploads<small>${Object.values(p.topics).filter(v => v === 'block').length} blocked topics · ${p.rules.length} rule${p.rules.length === 1 ? '' : 's'} · ${p.daily} questions a day</small></span><button class="btn" data-mac-tab="agent">Agent settings…</button></div>` : ''}
+      </div></div>
+    <div class="group"><h3>Privacy and sharing</h3>
+      <div class="card"><div class="row"><span class="label">Require Face ID to open Notebook<small>Keeps ${k.name}'s notebook private from friends and siblings.</small></span>${sw('lock', p.lock, 'Require Face ID')}</div>
+        <div class="row"><span class="label">Who ${k.name} can share with<small>${{ off: 'Sharing is off. Shared items from others aren’t accepted.', family: 'Notes and links, only with people on your Family list.', anyone: 'Notes and links, with anyone who uses Notebook.' }[p.sharing]} Kids never share finance.</small></span>
+          <div class="seg" role="group" aria-label="Sharing">${[['off','Off'],['family','Family only'],['anyone','Anyone on Notebook']].map(([v, l]) => `<button data-sharing="${v}" aria-pressed="${p.sharing === v}">${l}</button>`).join('')}</div></div></div>
+    </div>`;
+}
+function agentTab(k) {
+  const p = k.draft;
+  if (!p.apps.agent.on) return `<div class="group"><div class="card"><div class="row"><span class="label">The AI agent is off for ${k.name}<small>Turn it on in Apps to set topics and rules.</small></span><button class="btn" data-mac-tab="apps">Go to Apps</button></div></div></div>`;
+  const topicRows = TOPICS.map(t => {
+    const control = t.locked ? `<span class="info">${SVG.lock}${{ block: 'Always blocked', care: 'Always answered with care', explain: 'Always explains instead' }[t.locked]}</span>`
+      : `<div class="seg topic" role="group" aria-label="${t.name}">${['allow','careful','block'].map(v => `<button data-topic="${t.id}" data-v="${v}" aria-pressed="${p.topics[t.id] === v}">${{ allow:'Allow', careful:'Careful', block:'Block' }[v]}</button>`).join('')}</div>`;
+    return `<div class="row"><i class="ico" style="background:${t.color}">${t.icon}</i><span class="label">${t.name}<small>${t.desc}</small></span>${control}</div>`;
+  }).join('');
+  return `
+    <div class="group"><h3>What can ${k.name} ask about?</h3>
+      <p class="hint"><b>Allow</b> answers normally. <b>Careful</b> answers gently at ${k.name}'s age. <b>Block</b> shows your message below instead of an answer.</p>
+      <div style="margin-bottom:10px" class="seg" role="group" aria-label="Starting point">${Object.entries(PRESETS).map(([id, pr]) => `<button data-preset="${id}" aria-pressed="${p.preset === id}">${pr.label}</button>`).join('')}<button aria-pressed="${p.preset === 'custom'}" disabled>Custom</button></div>
+      <div class="card">${topicRows}</div></div>
+    <div class="group"><h3>How Ask answers</h3>
+      <p class="hint">Ask is for curiosity: space, science, history, math and nature. It doesn't do homework. Asked for answers, it explains the idea and suggests something to wonder about next.</p>
+      <div class="card"><div class="row"><span class="label">Answer style<small>${{ short:'One or two simple sentences.', wonder:'Explains, then offers follow-up questions to keep exploring.', think:'Asks for a guess first, then explains and offers follow-ups.' }[p.style]}</small></span>
+        <div class="seg" role="group" aria-label="Answer style">${[['short','Short and simple'],['wonder','Explain and wonder'],['think','Guess first']].map(([v, l]) => `<button data-style="${v}" aria-pressed="${p.style === v}">${l}</button>`).join('')}</div></div></div></div>
+    <div class="group"><h3>Photos & files in chat</h3>
+      <p class="hint">Attachments are checked with the question, the same way as typed text. Photos are resized on the phone before sending.</p>
+      <div class="card">
+        <div class="row"><span class="label">Take a photo<small>Show the agent a bug, a leaf or the Moon.</small></span>${sw('attach.camera', p.attach.camera, 'Take a photo')}</div>
+        <div class="row"><span class="label">Choose from photos</span>${sw('attach.library', p.attach.library, 'Choose from photos')}</div>
+        <div class="row"><span class="label">Attach files<small>PDFs up to 10 MB and text files.</small></span>${sw('attach.files', p.attach.files, 'Attach files')}</div>
+      </div></div>
+    <div class="group"><h3>Your own rules</h3>
+      <p class="hint">Write them the way you'd say them. They're checked on every question and every answer.</p>
+      <div class="card">${p.rules.map((r, i) => `<div class="rule"><p>${esc(r)}</p><button class="x" data-rule-del="${i}" aria-label="Remove rule">×</button></div>`).join('') || '<div class="rule"><p style="color:var(--text3)">No rules yet.</p></div>'}
+        <form class="rule-add" data-form="rule"><input id="rule-input" placeholder="Add a rule, like: No questions about YouTube drama" maxlength="160"><button class="btn" type="submit">Add</button></form></div>
+      <div class="examples">${['No scary stories at bedtime','Don’t recommend apps or websites','Answer in Tamil when asked'].map(x => `<button class="chip" data-example="${esc(x)}">+ ${esc(x)}</button>`).join('')}</div></div>
+    <div class="group"><h3>When a question isn't allowed</h3>
+      <div class="card"><div class="refusal"><div><label for="refusal" class="preview-cap">What ${k.name} sees</label><textarea class="field" id="refusal" maxlength="200">${esc(p.refusal)}</textarea></div>
+        <div><span class="preview-cap">Preview</span><div class="preview-bubble">${esc(p.refusal || 'Let’s pick a different question.')}</div></div></div></div></div>
+    <div class="group"><h3>AI connection</h3>
+      <p class="hint">Use a separate key for each child with a monthly spending cap set at the provider. It's sealed inside the published settings and never shown on ${k.name}'s devices.</p>
+      <div class="card">
+        <div class="row"><span class="label">Provider</span><select class="field" id="provider"><option value="anthropic"${p.provider === 'anthropic' ? ' selected' : ''}>Anthropic</option><option value="openai"${p.provider === 'openai' ? ' selected' : ''}>OpenAI</option></select></div>
+        <div class="row"><span class="label">Model<small>Must accept images for photo uploads.</small></span><input class="field" id="model" value="${esc(p.model)}"></div>
+        <div class="row"><span class="label">API key<small>Saved · ending 4f2a</small></span><button class="btn">Replace key…</button></div>
+      </div></div>
+    <div class="group"><h3>Tools & time</h3>
+      <div class="card">
+        <div class="row"><span class="label">Web browsing<small>Search and read public pages.</small></span>${sw('web', p.web, 'Web browsing')}</div>
+        <div class="row"><span class="label">Edit notes & journal<small>The agent can create and change ${k.name}'s notes.</small></span>${sw('editNotes', p.editNotes, 'Edit notes and journal')}</div>
+        <div class="row"><span class="label">Quiet hours<small>No agent from 9:00 PM to 7:00 AM.</small></span>${sw('quiet', p.quiet, 'Quiet hours')}</div>
+        <div class="row"><span class="label">Questions per day</span><div class="stepper"><button data-act="daily-" aria-label="Fewer">−</button><output>${p.daily}</output><button data-act="daily+" aria-label="More">+</button></div></div>
+      </div></div>`;
+}
+function devicesTab(k) {
+  return `<div class="group"><h3>${k.name}'s devices</h3>
+    <p class="hint">Each device checks for new settings every 30 seconds while Notebook is open.</p>
+    <div class="card">${k.device.map(d => `<div class="device"><i class="dev-ico">${d.kind === 'mac' ? '<svg viewBox="0 0 16 16"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5V10H2zM0 11h16v.5A1.5 1.5 0 0 1 14.5 13h-13A1.5 1.5 0 0 1 0 11.5z"/></svg>' : '<svg viewBox="0 0 16 16"><path d="M5 1h6a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 11 15H5a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 5 1zm2 11.5a1 1 0 1 0 2 0 1 1 0 0 0-2 0z"/></svg>'}</i><span class="label">${d.name}<small>Settings locked</small></span>${k.devStatus === 'ok' ? `<span class="status ok">Up to date · v${k.version}</span>` : `<span class="status wait">Updating to v${k.version}…</span>`}</div>`).join('') || '<div class="device"><span class="label" style="color:var(--text2)">No devices yet.</span></div>'}
+      <div class="device"><span class="label" style="color:var(--text2)">Add a device once by scanning a code on it.</span><button class="btn" data-act="enroll">Add a device…</button></div></div></div>`;
+}
+function renderMac() {
+  const k = kids[state.sel];
+  const side = `<nav class="side" aria-label="Family members">
+      <div class="sec">Managed by you</div>
+      ${Object.values(kids).map(c => { const n = changes(c); return `<button class="member" data-member="${c.id}" aria-current="${state.sel === c.id}"><i class="avatar" style="background:${c.color}">${esc(c.name[0])}</i><span>${esc(c.name)}<small>Age ${c.age} · v${c.version}</small></span>${n ? `<em class="badge" title="Unpublished changes">${n}</em>` : ''}</button>`; }).join('')}
+      <button class="member" data-member="add"><i class="avatar" style="background:var(--seg);color:var(--text2)">+</i><span>Add a child</span></button>
+      <div class="sec">Independent</div>
+      <button class="member" data-member="partner" aria-current="${state.sel === 'partner'}"><i class="avatar" style="background:#8e8e93">P</i><span>Partner<small>Own notebook · private</small></span></button>
+    </nav>`;
+  let pane;
+  if (state.sel === 'partner') {
+    pane = `<div class="pane"><div class="partner"><i class="avatar" style="background:#8e8e93;width:48px;height:48px;font-size:20px">P</i><h2>Your partner's notebook is separate</h2><p>Their notes, journal, finances and chats live in their own iCloud account, encrypted with their own key. You can't see them or change their settings, and they can't see yours.</p><p>They connect their own AI provider in Agent settings on their devices.</p></div></div>`;
+  } else if (state.sel === 'add') {
+    pane = `<div class="pane"><div class="partner"><h2>Add a child</h2><p>Enter a name and age. Notebook picks starting settings for that age, and you can change any of them before publishing.</p>
+      <div class="card"><div class="row"><label class="label" for="new-name">Name</label><input class="field" id="new-name" value="Riley"></div><div class="row"><label class="label" for="new-age">Age</label><input class="field" id="new-age" type="number" min="4" max="17" value="11" style="width:70px"></div></div>
+      <div><button class="btn primary" data-act="create">Create profile</button></div></div></div>`;
+  } else {
+    const n = changes(k);
+    const body = state.macTab === 'apps' ? appsTab(k) : state.macTab === 'agent' ? agentTab(k) : devicesTab(k);
+    pane = `<div class="pane">
+      <div class="pane-head"><div class="hero"><i class="avatar" style="background:${k.color}">${esc(k.name[0])}</i>
+        <div class="grow"><h2>${esc(k.name)}</h2><p>${k.device.length} device${k.device.length === 1 ? '' : 's'} · settings v${k.version} published</p></div>
+        <div class="row" style="padding:0;min-height:0"><span style="color:var(--text2)">Age</span><div class="stepper"><button data-act="age-" aria-label="Younger">−</button><output>${k.age}</output><button data-act="age+" aria-label="Older">+</button></div></div></div>
+        <div class="seg tabs" role="tablist" aria-label="Settings sections">${[['apps','Apps'],['agent','Agent'],['devices','Devices']].map(([v, l]) => `<button role="tab" data-mac-tab="${v}" aria-pressed="${state.macTab === v}" aria-selected="${state.macTab === v}">${l}</button>`).join('')}</div>
+      </div>
+      <div class="scroll">${body}</div>
+      <div class="publishbar"><span class="pmsg">${pmsg(k, n)}</span><button class="btn ghost" data-act="revert"${n ? '' : ' disabled'}>Revert</button><button class="btn primary" data-act="publish"${n ? '' : ' disabled'}>Publish to ${esc(k.name)}</button></div>
+    </div>`;
+  }
+  const sync = kids[state.sel] ? `<span class="sync"><b></b>Synced with your iPhone</span>` : '';
+  const scrollTop = mac.querySelector('.scroll')?.scrollTop || 0;
+  mac.innerHTML = `<div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><span class="ttl">Family <span class="crumb">${kids[state.sel] ? '› ' + esc(kids[state.sel].name) : ''}</span></span><span class="spacer"></span>${sync}</div><div class="body">${side}${pane}</div>`;
+  const sc = mac.querySelector('.scroll'); if (sc && !state.resetScroll) sc.scrollTop = scrollTop; state.resetScroll = false;
+  document.querySelector('.sheet-back')?.remove();
+  if (state.enroll && kids[state.sel]) {
+    const back = document.createElement('div'); back.className = 'sheet-back';
+    back.innerHTML = `<div class="sheet" role="dialog" aria-label="Add a device"><h3>Add one of ${esc(kids[state.sel].name)}'s devices</h3><p>On ${esc(kids[state.sel].name)}'s iPhone, open Notebook → Settings → Join family and scan this code. On a Mac, paste the code instead. It expires in 10 minutes.</p>
+      <div class="qr-row"><canvas id="qr" width="29" height="29" aria-label="Pairing code (illustration)"></canvas><div style="display:flex;flex-direction:column;gap:8px;min-width:0"><span class="code" id="code">NBF-7K2Q-9WXD-4M</span><button class="btn" data-act="copy">Copy code</button><small style="color:var(--text2)">Then check the 6-digit number matches on both screens.</small></div></div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn primary" data-act="enroll-close">Done</button></div></div>`;
+    back.addEventListener('click', onMacClick);
+    document.querySelector('.mac-wrap').appendChild(back);
+    drawQR(document.getElementById('qr'));
+  }
+}
+function drawQR(c) {
+  const g = c.getContext('2d'); let s = 7;
+  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 29, 29); g.fillStyle = '#111';
+  for (let y = 0; y < 29; y++) for (let x = 0; x < 29; x++) if (rnd() > .52) g.fillRect(x, y, 1, 1);
+  for (const [ox, oy] of [[0,0],[22,0],[0,22]]) { g.fillStyle = '#111'; g.fillRect(ox, oy, 7, 7); g.fillStyle = '#fff'; g.fillRect(ox + 1, oy + 1, 5, 5); g.fillStyle = '#111'; g.fillRect(ox + 2, oy + 2, 3, 3); }
+}
+function matchPreset(t) { for (const [id, p] of Object.entries(PRESETS)) if (Object.keys(p.t).every(x => p.t[x] === t[x])) return id; return 'custom'; }
+function onMacClick(e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = kids[state.sel];
+  if (b.dataset.member) {
+    state.sel = b.dataset.member; state.enroll = false; state.resetScroll = true;
+    if (kids[state.sel]) { state.phoneKid = state.sel; state.kidSheet = false; state.attachMenu = false; renderPhone(); renderSteps(); }
+    renderMac(); return;
+  }
+  if (b.dataset.macTab) { state.macTab = b.dataset.macTab; state.resetScroll = true; }
+  else if (b.dataset.topic) { k.draft.topics[b.dataset.topic] = b.dataset.v; k.draft.preset = matchPreset(k.draft.topics); }
+  else if (b.dataset.preset) { k.draft.preset = b.dataset.preset; k.draft.topics = clone(PRESETS[b.dataset.preset].t); }
+  else if (b.dataset.style) k.draft.style = b.dataset.style;
+  else if (b.dataset.moneyMode) k.draft.apps.money.mode = b.dataset.moneyMode;
+  else if (b.dataset.sharing) k.draft.sharing = b.dataset.sharing;
+  else if (b.dataset.ruleDel) k.draft.rules.splice(+b.dataset.ruleDel, 1);
+  else if (b.dataset.example) { if (!k.draft.rules.includes(b.dataset.example)) k.draft.rules.push(b.dataset.example); }
+  else switch (b.dataset.act) {
+    case 'age-': k.age = Math.max(4, k.age - 1); break;
+    case 'age+': k.age = Math.min(17, k.age + 1); break;
+    case 'daily-': k.draft.daily = Math.max(10, k.draft.daily - 10); break;
+    case 'daily+': k.draft.daily = Math.min(200, k.draft.daily + 10); break;
+    case 'allow-': k.draft.apps.money.allowance = Math.max(0, k.draft.apps.money.allowance - 1); break;
+    case 'allow+': k.draft.apps.money.allowance = Math.min(50, k.draft.apps.money.allowance + 1); break;
+    case 'revert': k.draft = clone(k.published); break;
+    case 'publish': publish(k); break;
+    case 'enroll': state.enroll = true; break;
+    case 'enroll-close': state.enroll = false; break;
+    case 'copy': {
+      const done = () => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy code'; }, 1400); };
+      try { navigator.clipboard.writeText('NBF-7K2Q-9WXD-4M').then(done, selectCode); } catch (_) { selectCode(); }
+      return;
+    }
+    case 'create': {
+      const name = (document.getElementById('new-name').value.trim() || 'Riley').slice(0, 20);
+      const age = Math.max(4, Math.min(17, +document.getElementById('new-age').value || 11));
+      const id = 'k' + Date.now(), pre = age < 10 ? 'little' : age < 14 ? 'tween' : 'teen';
+      kids[id] = { id, name, age, color: '#5b7cfa', device: [], draft: policy(pre, { refusal: "Let's ask a grown-up about that one." }), version: 0, devStatus: 'ok', used: 0, chat: [], pending: [], last: null, tab: 'agent', openNote: null, noteMenu: false, mood: 'Good', unlocked: false,
+        notes: [], journal: [], goals: [{ name: 'First savings goal', target: 20, saved: 0 }], accounts: [['Checking', 0], ['Savings', 0]], links: [] };
+      kids[id].published = clone(kids[id].draft);
+      state.sel = id; state.phoneKid = id; state.macTab = 'apps'; renderPhone(); renderSteps(); break;
+    }
+    default: return;
+  }
+  renderMac();
+}
+mac.addEventListener('click', onMacClick);
+function selectCode() { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+mac.addEventListener('change', e => {
+  const k = kids[state.sel]; if (!k) return;
+  const el = e.target;
+  if (el.dataset.path) setPath(k.draft, el.dataset.path, el.checked);
+  else if (el.dataset.sel) setPath(k.draft, el.dataset.sel, el.value);
+  else if (el.id === 'provider') { k.draft.provider = el.value; k.draft.model = el.value === 'openai' ? 'gpt-5.4-mini' : 'claude-haiku-5-5'; }
+  else if (el.id === 'model') { k.draft.model = el.value.trim(); refreshBar(k); return; }
+  else return;
+  renderMac();
+});
+mac.addEventListener('input', e => {
+  const k = kids[state.sel]; if (!k || e.target.id !== 'refusal') return;
+  k.draft.refusal = e.target.value;
+  const prev = mac.querySelector('.preview-bubble'); if (prev) prev.textContent = e.target.value || 'Let’s pick a different question.';
+  refreshBar(k);
+});
+function refreshBar(k) {
+  const n = changes(k); mac.querySelector('.pmsg').innerHTML = pmsg(k, n);
+  mac.querySelector('[data-act="publish"]').disabled = !n; mac.querySelector('[data-act="revert"]').disabled = !n;
+}
+mac.addEventListener('submit', e => {
+  e.preventDefault();
+  const k = kids[state.sel], input = document.getElementById('rule-input');
+  const v = input.value.trim(); if (!v || !k) return;
+  k.draft.rules.push(v.slice(0, 160)); renderMac(); document.getElementById('rule-input').focus();
+});
+function publish(k) {
+  k.published = clone(k.draft); k.version++; k.devStatus = 'wait';
+  setTimeout(() => { k.devStatus = 'ok'; renderMac(); if (state.phoneKid === k.id) { state.attachMenu = false; renderPhone(); } }, 1300);
+}
+
+/* ---------- agent checker (simulated) ---------- */
+function has(q, k) {
+  if (!/^[a-z]/.test(k) || !/[a-z]$/.test(k)) return q.includes(k);
+  return new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(s|es|ing)?\\b').test(q);
+}
+const ruleWords = rule => rule.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !STOP.has(w));
+const RULE_EXTRA = { 'cheat': ['cheat','hack','free robux','unlimited','glitch'], 'essay': ['write my essay','write an essay','write it for me','paragraph for me'], 'scary': ['scary','scariest','horror','ghost'], 'apps': ['app','website','download'], 'youtube': ['youtube','youtuber','drama'] };
+function matchRule(q, rules) {
+  for (const r of rules) {
+    if (/^only\b/i.test(r) || /answer in|reply in|speak/i.test(r)) continue;
+    const extra = Object.entries(RULE_EXTRA).filter(([key]) => r.toLowerCase().includes(key)).flatMap(([, list]) => list);
+    const words = /essay/i.test(r) ? [] : ruleWords(r).filter(w => !['video','game','games','questions','write','plan','feedback','essays'].includes(w));
+    if ([...extra, ...words].some(h => has(q, h))) return r;
+  }
+  return null;
+}
+function classify(q, p) {
+  const t = TOPICS.find(x => x.locked === 'care' && x.kw.some(k => has(q, k))) || TOPICS.find(x => x.locked && x.kw.some(k => has(q, k)));
+  if (t) return { topic: t, decision: { care: 'care', explain: 'homework', block: 'block' }[t.locked], rule: null };
+  const rule = matchRule(q, p.rules);
+  const topic = TOPICS.find(x => !x.locked && x.kw.some(k => has(q, k))) || null;
+  if (rule) return { topic, decision: 'block', rule };
+  if (!topic) return { topic: null, decision: 'allow', rule: null };
+  return { topic, decision: p.topics[topic.id], rule: null };
+}
+const WONDERS = ['Why do cats purr?', 'How many stars are there?', 'Why do we have leap years?', 'How do airplanes stay up?', 'What did dinosaurs sound like?', 'Is there a biggest number?'];
+/* Scripted answers: [for younger kids, extra detail for older kids, follow-up questions]. */
+const ANSWERS = {
+  'moon': ['The Moon is about 384,000 kilometers away. If you could drive a car there without stopping, it would take about six months! Light makes the trip in just over one second.', ' The distance changes a little because the Moon’s path is an oval, and it drifts about 3.8 cm farther from Earth every year.', ['Why does the Moon change shape?', 'Could people live on the Moon?']],
+  'volcano': ['Deep underground, rock gets so hot it melts into magma. Magma is lighter than the rock around it, so it rises. Gas bubbles inside push like a shaken soda bottle, and when the pressure gets too strong, it bursts out.', ' Most volcanoes sit where Earth’s giant plates pull apart or crash together.', ['What is the biggest volcano?', 'Are there volcanoes on other planets?']],
+  'pyramid': ['Ancient Egyptians built the Great Pyramid about 4,500 years ago for a king named Khufu. Thousands of paid workers lived in a town nearby. They moved huge stone blocks with sleds, ramps and lots of teamwork.', ' It was the tallest building on Earth for almost 4,000 years.', ['How long did it take to build?', 'What was inside the pyramids?']],
+  'zero': ['Zero lets us write big numbers easily. Without it, how would you tell 5 from 50 or 500? Mathematicians in India started treating zero as a real number about 1,500 years ago, and the idea spread around the world.', ' Zero also made algebra and computers possible: every computer runs on just 0s and 1s.', ['Who invented numbers?', 'What is infinity?']],
+  'bees': ['Bees sip nectar from flowers and carry it home in a special honey stomach. In the hive they pass it from bee to bee, then fan it with their wings until most of the water dries out. What’s left is thick, sweet honey!', ' One bee makes only about a twelfth of a teaspoon of honey in its whole life.', ['How do bees talk to each other?', 'Why do bees sting?']],
+  'black hole': ['A black hole is a place where gravity pulls so hard that nothing can escape, not even light. Nobody can see inside, so scientists study how it pulls on the stars and gas around it.', ' The edge you can’t come back from is called the event horizon. In 2019 scientists took the first picture of a black hole’s shadow.', ['How are black holes made?', 'Is there a black hole near Earth?']],
+  'purr': ['Cats purr by quickly squeezing muscles in their voice box, about 25 times a second, while they breathe in and out.', ' Purring can mean a cat is happy, but cats also purr to calm themselves when they’re hurt or nervous.', ['Why do cats have whiskers?', 'Do big cats like lions purr?']],
+  'stars': ['On a dark night you can see about 2,500 stars with just your eyes. Our galaxy, the Milky Way, has a few hundred billion, and there are billions of galaxies!', ' That means there are more stars in the universe than grains of sand on all of Earth’s beaches.', ['What is a star made of?', 'Which star is closest to us?']],
+  'leap': ['Earth takes about 365 and a quarter days to go around the Sun. Those quarter days add up, so every four years we add February 29 to catch up.', ' There’s a twist: years ending in 00 skip the leap day unless they divide by 400, so 2000 had one but 1900 didn’t.', ['Why are there 7 days in a week?', 'Who made the calendar?']],
+  'airplane': ['A wing is shaped and tilted so it pushes air down as it moves. Pushing air down pushes the plane up! The engines keep it going fast enough for that lift to beat gravity.', ' That upward force is called lift, and big jets need to reach about 250 km/h before they can take off.', ['How do helicopters fly?', 'Why do planes leave white lines?']],
+  'dinosaur': ['Scientists think many dinosaurs didn’t roar like in movies. Some probably made low booming sounds with their mouths closed, like crocodiles and some birds do today.', ' Parasaurolophus had a long hollow crest that may have worked like a trumpet.', ['Are birds really dinosaurs?', 'What was the biggest dinosaur?']],
+  'biggest number': ['No! However big a number is, you can always add 1 to it. That never-ending idea is called infinity.', ' Some infinities are even bigger than others, which a mathematician named Georg Cantor proved about 150 years ago.', ['What is a googol?', 'How high can you count in a lifetime?']],
+  'moon shape': ['The Moon doesn’t really change shape. The Sun always lights up half of it. As the Moon travels around Earth, we see different amounts of that bright half, from a thin sliver to a full circle.', ' One trip through all the phases takes about 29.5 days, which is where the idea of a “month” comes from.', ['What is a lunar eclipse?', 'Why do we always see the same side?']],
+  'moon photo': ['That’s the Moon! The dark patches are called maria, which means “seas”, but they’re really giant plains of old lava. The round dents are craters made by space rocks crashing into it.', ' The Moon has no air or rain, so footprints astronauts left in 1969 are probably still there.', ['Why does the Moon have craters?', 'Has anyone walked on the Moon?']]
+};
+const ANSWER_KEYS = [['moon shape', ['change shape', 'phases']], ['moon', ['moon']], ['volcano', ['volcano']], ['pyramid', ['pyramid']], ['zero', ['zero']], ['bees', ['bee', 'honey']], ['black hole', ['black hole']], ['purr', ['purr']], ['stars', ['how many stars']], ['leap', ['leap year']], ['airplane', ['airplane', 'plane stay']], ['dinosaur', ['dinosaur']], ['biggest number', ['biggest number']]];
+function reply(q, c, p, kid, files) {
+  const young = kid.age < 11;
+  if (c.decision === 'care') return { text: "I'm really glad you told me. You're not alone, and you deserve help right now. Please talk to Dad or another grown-up you trust. In the US you can also call or text 988 any time to talk to someone kind." };
+  if (c.decision === 'block') return { text: p.refusal || "Let's pick a different question." };
+  if (c.decision === 'homework') return { text: 'I don’t do homework, but I love explaining ideas! Tell me what the topic is and I’ll share something fascinating about it.', next: ['Why do we have numbers?', 'What’s the weirdest fact about space?'] };
+  if (q.includes('tell me!') && kid.reveal) { const key = kid.reveal; kid.reveal = null; return full(key, p, young); }
+  const key = files.some(f => f.kind === 'photo') ? 'moon photo' : (ANSWER_KEYS.find(([, words]) => words.some(w => q.includes(w))) || [])[0];
+  if (files.some(f => f.kind === 'file') && !key) return { text: 'I read your article. Here’s the coolest part: lava can be over 1,100 °C, hot enough to melt glass! What part surprised you most?', next: ['Why is lava red?', 'Can scientists predict eruptions?'] };
+  if (key && p.style === 'think' && key !== 'moon photo') { kid.reveal = key; return { text: 'Great question! What’s your guess first? Think about it for a moment, then tap below.', next: ['Tell me!'] }; }
+  if (key) return full(key, p, young);
+  const id = c.topic?.id;
+  if (id === 'scary') return { text: c.decision === 'careful' ? 'Some stories are made to be really scary, and it’s fine if they’re not your thing yet. Spooky-but-fun ones like Coraline are a good start. Check with Dad before watching anything rated PG-13.' : 'People often rank The Exorcist and Hereditary as the scariest films. They’re rated R, so check with Dad first.' };
+  if (id === 'substances') return { text: 'Vaping means breathing in a heated liquid that usually has nicotine in it. Nicotine is very addictive and is especially hard on growing brains. Dad is a good person to talk to about it.' };
+  if (id === 'feelings') return { text: 'That sounds hard. Do you want to tell me more about what happened? Talking to Dad can help too.' };
+  if (c.decision === 'careful') return { text: 'That’s a good question. Here’s a short, simple answer, and Dad is a great person to ask for more.' };
+  return { text: 'What a great thing to wonder about! In the real app the AI answers here, in words that fit ' + kid.name + '’s age, and suggests what to explore next.' };
+}
+function full(key, p, young) {
+  const [base, more, next] = ANSWERS[key];
+  if (p.style === 'short') return { text: base.split(/(?<=[.!?])\s/)[0] };
+  return { text: base + (young ? '' : more), next };
+}
+
+/* ---------- phone ---------- */
+const screen = document.getElementById('screen');
+const SUGS = [['How far away is the Moon?', 'Space', '#4a5bd4'], ['Why do volcanoes erupt?', 'Earth', '#e0562f'], ['Who built the pyramids?', 'History', '#b8862b'], ['Why is zero so important?', 'Math', '#2f8fd8'], ['How do bees make honey?', 'Nature', '#2fa15a'], ['What’s inside a black hole?', 'Space', '#4a5bd4']];
+const TEMPLATES = [['I wonder', 'A question to explore', '#0a84ff', 'I wonder: \nMy guess: \nWhat I found out: '], ['Reading log', 'Book, pages, favorite part', '#ec407a', 'Book: \nPages read: \nFavorite part: '], ['Big idea', 'Something cool to remember', '#ff9f0a', 'My idea: \nWhy it’s cool: '], ['Checklist', 'Things to do', '#34c759', '☐ \n☐ \n☐ ']];
+const PROMPTS = ['What made you smile today?', 'What’s something new you learned?', 'Who was kind to you today?'];
+const MOODS = ['Great', 'Good', 'Okay', 'Low', 'Hard day'];
+const visibleTabs = p => APPS.filter(a => p.apps[a.id].on).map(a => a.id);
+function renderPhone() {
+  const k = kids[state.phoneKid], p = k.published, enrolled = k.version > 0, tabs = visibleTabs(p);
+  if (!tabs.includes(k.tab)) k.tab = tabs[0] || null;
+  screen.style.setProperty('--kid', k.color);
+  document.getElementById('phone-label').textContent = k.name + "'s iPhone · settings v" + k.version;
+  const scrollTop = screen.querySelector('.view')?.scrollTop;
+  let html = '<div class="island"></div><div class="statusbar"><span>3:42</span><span>5G ▮</span></div>';
+  if (!enrolled) html += `<div class="kid-head"><i class="avatar">${esc(k.name[0])}</i><div class="grow"><h4>Hi ${esc(k.name)}!</h4></div></div><div class="view"><div class="welcome"><h5>Almost ready</h5><p>Ask Dad to add this device from Family settings on his Mac.</p></div></div>`;
+  else if (!k.tab) html += `<div class="kid-head"><i class="avatar">${esc(k.name[0])}</i><div class="grow"><h4>Hi ${esc(k.name)}!</h4></div></div><div class="view"><p class="empty-kid">Nothing here yet.</p></div>`;
+  else html += ({ notes: notesView, journal: journalView, links: linksView, money: moneyView, agent: agentView })[k.tab](k, p);
+  if (enrolled && tabs.length) html += `<nav class="tabbar" aria-label="Sections">${tabs.map(id => `<button data-tab="${id}" aria-current="${k.tab === id}">${SVG.tab[id]}${APPS.find(a => a.id === id).kid}</button>`).join('')}</nav>`;
+  if (state.kidSheet) html += `<div class="kid-sheet" role="dialog" aria-label="Settings"><div class="grabber"></div><h5>Settings</h5><p>A parent set up Notebook on this device, so there’s nothing to change here.</p><button class="kbtn" data-act="close-sheet">Got it</button></div>`;
+  if (enrolled && p.lock && !k.unlocked) html += `<div class="lockscreen"><div class="face">${SVG.face}</div><h5>Notebook is locked</h5><button class="kbtn" data-act="unlock">Unlock with Face ID</button></div>`;
+  screen.innerHTML = html;
+  const view = screen.querySelector('.view');
+  if (view) { if (k.tab === 'agent') view.scrollTop = view.scrollHeight; else if (scrollTop != null && !state.resetPhoneScroll) view.scrollTop = scrollTop; }
+  state.resetPhoneScroll = false;
+}
+const head = (k, title, sub, extra) => `<div class="kid-head"><i class="avatar">${esc(k.name[0])}</i><div class="grow"><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</div>${extra || ''}<button class="round" data-act="settings" aria-label="Settings">${SVG.gear}</button></div>`;
+function notesView(k, p) {
+  const n = p.apps.notes;
+  if (k.openNote != null && k.notes[k.openNote]) {
+    const note = k.notes[k.openNote];
+    return head(k, 'Notes', '') + `<div class="view"><button class="back" data-act="note-back">‹ All notes</button><div class="note-page"><span class="ktag">${esc(note.tag)}</span><h5>${esc(note.t)}</h5><p>${esc(note.b)}</p>${note.photo ? '<div class="photo" role="img" aria-label="Photo of a worksheet"></div>' : ''}</div>
+      ${n.photos && !note.photo ? `<button class="kbtn soft" data-act="note-photo">Add a photo</button>` : ''}</div>`;
+  }
+  const add = `<button class="round add" data-act="note-new" aria-label="New note">${SVG.plus}</button>`;
+  const menu = k.noteMenu && n.templates ? `<div class="templates">${TEMPLATES.map(([t, s, c], i) => `<button class="tpl" data-tpl="${i}" style="background:${c}">${t}<small>${s}</small></button>`).join('')}</div><button class="kbtn soft" data-act="note-blank">Blank note</button>` : '';
+  return head(k, 'Notes', `${k.notes.length} note${k.notes.length === 1 ? '' : 's'}`, add) + `<div class="view">${menu}
+    ${k.notes.map((note, i) => `<button class="kcard" data-note="${i}"><span class="ktag">${esc(note.tag)}</span><b>${esc(note.t)}</b><p>${esc(note.b.split('\n')[0])}</p></button>`).join('') || '<p class="empty-kid">Tap + to start your first note.</p>'}</div>`;
+}
+function journalView(k, p) {
+  const j = p.apps.journal, prompt = PROMPTS[k.journal.length % PROMPTS.length];
+  return head(k, 'Journal', j.reminder ? `Reminder at ${j.time}` : '') + `<div class="view">
+    <div class="prompt"><h5>${prompt}</h5>
+      <div class="moods" role="group" aria-label="How was today?">${MOODS.map(m => `<button data-mood="${m}" aria-pressed="${k.mood === m}">${m}</button>`).join('')}</div>
+      <textarea id="journal-text" placeholder="Write as much or as little as you like…" aria-label="Journal entry" maxlength="600"></textarea>
+      <button class="kbtn" data-act="journal-save">Save entry</button>
+      <span class="private">${SVG.lock}Only you can read your journal.</span></div>
+    ${k.journal.map(e => `<div class="kcard"><span class="meta">${esc(e.d)} · ${esc(e.mood)}</span><p style="color:var(--text)">${esc(e.b)}</p></div>`).join('')}</div>`;
+}
+function moneyView(k, p) {
+  const m = p.apps.money;
+  const goals = k.goals.map((g, i) => `<div class="kcard goal"><b>${esc(g.name)}</b><div class="bar"><i style="width:${Math.min(100, g.saved / g.target * 100)}%"></i></div>
+    <div class="amt"><span>${money(g.saved)} saved</span><span style="color:var(--text2)">of ${money(g.target)}</span></div>
+    <div class="acts"><button data-goal="${i}" data-amt="1">+ $1</button><button data-goal="${i}" data-amt="5">+ $5</button></div></div>`).join('');
+  const accounts = m.mode === 'full' ? `<div class="kcard"><b>My accounts</b>${k.accounts.map(([n, v]) => `<div class="acct"><span>${n}</span><b>${money(v)}</b></div>`).join('')}<span class="meta">Spent this month: $23 · Snacks $9, Games $14</span></div>` : '';
+  return head(k, 'Money', m.mode === 'full' ? 'Savings and spending' : 'Savings goals') + `<div class="view">
+    ${m.allowance ? `<div class="allow-card"><b>${money(m.allowance)}</b><span>Your allowance arrives every Saturday</span></div>` : ''}
+    ${accounts}${goals}</div>`;
+}
+function linksView(k, p) {
+  return head(k, 'Links', 'Cool things to come back to') + `<div class="view">
+    ${k.links.map(([t, d, by]) => `<div class="kcard"><span class="ktag">${esc(d)}</span><b>${esc(t)}</b><span class="meta">Saved by ${esc(by)}</span></div>`).join('') || '<p class="empty-kid">Save a link from Safari to see it here.</p>'}
+    ${p.sharing !== 'off' ? `<p class="empty-kid" style="padding:10px">You can share a collection with ${p.sharing === 'family' ? 'your family' : 'friends on Notebook'}.</p>` : ''}</div>`;
+}
+function agentView(k, p) {
+  const left = Math.max(0, p.daily - k.used), a = p.attach, canAttach = a.camera || a.library || a.files;
+  const fileChip = f => f.kind === 'photo' ? '<div class="photo moon" role="img" aria-label="Photo of the Moon"></div>' : `<span class="filechip">${SVG.file}${esc(f.name)}</span>`;
+  const bubbles = k.chat.map(m => m.me ? `<div class="bub me">${m.files?.length ? `<div class="files">${m.files.map(fileChip).join('')}</div>` : ''}${m.text ? `<span>${esc(m.text)}</span>` : ''}</div>` : `<div class="bub ai ${m.cls || ''}">${esc(m.text)}</div>`).join('');
+  const wonder = WONDERS[k.age % WONDERS.length];
+  const welcome = `<div class="welcome"><h5>What are you curious about today?</h5><p>Ask me about space, animals, history, numbers, or how anything works.${canAttach ? ' You can show me a photo of something you found, too.' : ''}</p>
+    <div class="wonder"><small>Wonder of the day</small><b>${esc(wonder)}</b><button data-q="${esc(wonder)}">Find out</button></div>
+    <div class="sugs" style="margin-top:10px">${SUGS.map(([q, t, c]) => `<button class="sug" data-q="${esc(q)}"><span class="cat" style="color:${c}">${t}</span>${esc(q)}</button>`).join('')}</div></div>`;
+  const lastAI = k.chat[k.chat.length - 1];
+  const next = !state.typing && lastAI && !lastAI.me && lastAI.next?.length ? `<div class="next">${lastAI.next.map(n => `<button data-q="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : '';
+  const pend = k.pending.length ? `<div class="pending">${k.pending.map((f, i) => `<div class="pchip">${f.kind === 'photo' ? '<div class="photo small moon" role="img" aria-label="Photo of the Moon"></div>' : `<div class="pfile">${SVG.file}<span>${esc(f.name)}</span></div>`}<button class="x" data-unpend="${i}" aria-label="Remove">×</button></div>`).join('')}</div>` : '';
+  const menu = state.attachMenu ? `<div class="menu" role="menu">${a.camera ? `<button data-attach="camera" role="menuitem">${SVG.camera}Take Photo</button>` : ''}${a.library ? `<button data-attach="library" role="menuitem">${SVG.photos}Photo Library</button>` : ''}${a.files ? `<button data-attach="files" role="menuitem">${SVG.file}Choose File</button>` : ''}</div>` : '';
+  const ready = left && !state.typing;
+  return head(k, `Hi ${esc(k.name)}!`, '') + `<div class="view" id="chat">${k.chat.length ? bubbles + next : welcome}${state.typing ? '<div class="typing"><i></i><i></i><i></i></div>' : ''}</div>
+    <div class="composer">${menu}${pend}<form data-form="ask">${canAttach ? `<button type="button" class="clip" data-act="attach-menu" aria-label="Add a photo or file"${left && k.pending.length < 3 ? '' : ' disabled'}>${SVG.clip}</button>` : ''}<input id="ask" placeholder="I wonder…" autocomplete="off" maxlength="300"${left ? '' : ' disabled'}><button class="send" aria-label="Send"${ready ? '' : ' disabled'}>${SVG.send}</button></form>
+      <span class="left">${left ? `${left} questions left today` : 'That’s all for today. See you tomorrow!'}</span></div>`;
+}
+screen.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = kids[state.phoneKid];
+  if (b.dataset.tab) { k.tab = b.dataset.tab; k.openNote = null; k.noteMenu = false; state.attachMenu = false; state.resetPhoneScroll = true; }
+  else if (b.dataset.q) { ask(b.dataset.q); return; }
+  else if (b.dataset.note) { k.openNote = +b.dataset.note; state.resetPhoneScroll = true; }
+  else if (b.dataset.tpl) { const [t, , , body] = TEMPLATES[+b.dataset.tpl]; k.notes.unshift({ t, b: body, tag: t, photo: false }); k.noteMenu = false; k.openNote = 0; }
+  else if (b.dataset.mood) k.mood = b.dataset.mood;
+  else if (b.dataset.goal) { const g = k.goals[+b.dataset.goal]; g.saved = Math.min(g.target, g.saved + +b.dataset.amt); }
+  else if (b.dataset.attach) { k.pending.push(b.dataset.attach === 'files' ? { kind: 'file', name: 'Volcano article.pdf' } : { kind: 'photo', name: 'Moon photo' }); state.attachMenu = false; }
+  else if (b.dataset.unpend) k.pending.splice(+b.dataset.unpend, 1);
+  else switch (b.dataset.act) {
+    case 'settings': state.kidSheet = true; break;
+    case 'close-sheet': state.kidSheet = false; break;
+    case 'unlock': k.unlocked = true; break;
+    case 'note-new': if (k.published.apps.notes.templates) k.noteMenu = !k.noteMenu; else { k.notes.unshift({ t: 'New note', b: '', tag: 'Note', photo: false }); k.openNote = 0; } break;
+    case 'note-blank': k.notes.unshift({ t: 'New note', b: '', tag: 'Note', photo: false }); k.noteMenu = false; k.openNote = 0; break;
+    case 'note-back': k.openNote = null; break;
+    case 'note-photo': k.notes[k.openNote].photo = true; break;
+    case 'journal-save': {
+      const text = document.getElementById('journal-text').value.trim(); if (!text) return;
+      k.journal.unshift({ d: 'Today', mood: k.mood, b: text }); break;
+    }
+    case 'attach-menu': state.attachMenu = !state.attachMenu; break;
+    default: return;
+  }
+  renderPhone();
+});
+screen.addEventListener('submit', e => { e.preventDefault(); const v = document.getElementById('ask').value.trim(); if (v || kids[state.phoneKid].pending.length) ask(v); });
+function ask(text) {
+  const k = kids[state.phoneKid], p = k.published; if (state.typing || k.used >= p.daily) return;
+  const files = k.pending.splice(0); state.attachMenu = false;
+  const q = ' ' + (text + ' ' + files.map(f => f.kind === 'photo' ? 'photo' : f.name).join(' ')).toLowerCase() + ' ', c = classify(q, p);
+  k.chat.push({ me: true, text, files }); k.used++; state.typing = true; renderPhone();
+  setTimeout(() => {
+    state.typing = false;
+    const a = reply(q, c, p, k, files);
+    k.chat.push({ text: a.text, next: a.next, cls: c.decision === 'block' ? 'blocked' : c.decision === 'care' || c.decision === 'homework' ? 'care' : '' });
+    k.last = { text: text || (files[0]?.name ?? ''), files, c, p: clone(p), version: k.version, age: k.age }; renderPhone(); renderSteps();
+  }, c.decision === 'block' ? 650 : 1100);
+}
+
+/* ---------- inspector ---------- */
+function renderSteps() {
+  const k = kids[state.phoneKid], L = k.last, el = document.getElementById('steps'), sub = document.getElementById('inspect-sub');
+  if (!L) {
+    sub.textContent = 'Ask something in ' + k.name + '’s agent tab to see each check.';
+    el.innerHTML = ['Question check', 'Instructions sent to the AI', 'Answer check'].map((h, i) => `<div class="step"><span class="k">Step ${i + 1}</span><h4>${h}</h4><span class="verdict v-idle">Waiting</span><p class="empty-step">${['A small model reads the question and any photo or file against ' + k.name + '’s topics and your rules before anything else happens.', 'Allowed questions go to the AI with ' + k.name + '’s age, answer style and your rules added to its instructions.', 'The finished answer is checked again before ' + k.name + ' sees it. Live typing is off for kids so nothing unchecked appears.'][i]}</p></div>`).join('');
+    return;
+  }
+  const c = L.c, n = changes(k);
+  sub.innerHTML = `“${esc(L.text)}” · settings v${L.version}${n && state.phoneKid === state.sel ? ` · <b>${n} unpublished change${n > 1 ? 's' : ''} not applied</b>` : ''}`;
+  const label = { allow: 'Allowed', careful: 'Careful', block: 'Blocked', care: 'Care response', homework: 'Explains instead' }[c.decision];
+  const why = c.rule ? `Matched your rule: “${esc(c.rule)}”` : c.topic ? `Topic: ${c.topic.name} → ${c.topic.locked ? { care: 'always answered with care', block: 'always blocked', explain: 'always explains the idea instead' }[c.topic.locked] : { allow: 'Allow', careful: 'Careful', block: 'Block' }[L.p.topics[c.topic.id]]}` : 'No restricted topic found';
+  const careful = TOPICS.filter(t => !t.locked && L.p.topics[t.id] === 'careful').map(t => t.name);
+  const stop = c.decision === 'block' || c.decision === 'care' || c.decision === 'homework';
+  const files = L.files.length ? `<li>Checked with ${L.files.length === 1 ? 'the attached ' + (L.files[0].kind === 'photo' ? 'photo' : 'file') : L.files.length + ' attachments'}</li>` : '';
+  el.innerHTML = `
+    <div class="step"><span class="k">Step 1</span><h4>Question check</h4><span class="verdict v-${c.decision}">${label}</span><ul><li>${why}</li>${files}<li>${c.decision === 'block' ? 'The AI is never called. ' + esc(k.name) + ' sees your message.' : c.decision === 'care' ? 'Answered with a fixed caring message and help resources.' : c.decision === 'homework' ? 'A fixed reply offers to explain the idea instead.' : 'Sent on to the AI.'}</li></ul></div>
+    <div class="step"><span class="k">Step 2</span><h4>Instructions sent to the AI</h4>${stop ? '<span class="verdict v-idle">Skipped</span><p class="empty-step">No AI call for this question.</p>' : `<span class="verdict v-allow">Sent</span><ul><li>Talking with a ${L.age}-year-old. Use simple, kind words.</li><li>Style: ${{ short: 'short and simple', wonder: 'explain, then offer follow-up questions', think: 'ask for a guess first' }[L.p.style]}</li><li>Spark curiosity. Never do homework; explain ideas instead.</li>${careful.length ? `<li>Handle gently: ${careful.join(', ')}</li>` : ''}${L.p.rules.map(r => `<li>Rule: ${esc(r)}</li>`).join('')}<li>Tools: ${[L.p.apps.notes.on && 'read notes', L.p.apps.notes.on && L.p.editNotes && 'edit notes', L.p.web && 'web', L.p.apps.money.on && L.p.apps.money.mode === 'full' && 'finance summary'].filter(Boolean).join(', ') || 'none'}</li></ul>`}</div>
+    <div class="step"><span class="k">Step 3</span><h4>Answer check</h4>${stop ? '<span class="verdict v-idle">Skipped</span><p class="empty-step">Nothing generated to check.</p>' : '<span class="verdict v-allow">Passed</span><ul><li>Answer fits the topics and your rules.</li><li>If it hadn’t, ' + esc(k.name) + ' would see your message instead.</li></ul>'}</div>`;
+}
+
+renderMac(); renderPhone(); renderSteps();
+})();
+</script>
+</body>
+</html>

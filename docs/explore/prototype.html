@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explore Prototype</title>
+<style>
+/* Explore: a new Money section on the Mac. Same three-column shape as Finance and Trading:
+   sidebar | industries list | heat map and stock lists. Numbers are made up (stable per ticker),
+   so the colors and sorting behave like real data would. */
+:root {
+  --desk: #e7e6e1;
+  --bg: #f5f5f3; --surface: #ffffff; --hover: #ebebe8; --sel: rgba(47,107,255,.12);
+  --text: #171717; --text2: #4f4f4c; --text3: #6f6f6c; --text4: #a3a3a0;
+  --border: #e4e4e0; --border2: #ececea;
+  --accent: #2f6bff; --green: #16a34a; --red: #d64545; --teal: #0d9488;
+  --tile-text: #ffffff; --tile-flat: #8a8a86;
+  --shadow: 0 30px 60px -22px rgba(20,20,10,.32), 0 0 0 .5px rgba(0,0,0,.14);
+  --font-serif: Charter, "Iowan Old Style", "Source Serif Pro", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #232322; --sel: rgba(93,139,255,.18);
+  --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --green: #4ade80; --red: #f87171; --teal: #2dd4bf;
+  --tile-flat: #4a4a47;
+  --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --desk: #0d0d0c; --bg: #131312; --surface: #1b1b1a; --hover: #232322; --sel: rgba(93,139,255,.18);
+  --text: #ececea; --text2: #b4b4b0; --text3: #9a9a96; --text4: #62625f;
+  --border: #2a2a28; --border2: #222220; --accent: #5d8bff; --green: #4ade80; --red: #f87171; --teal: #2dd4bf;
+  --tile-flat: #4a4a47;
+  --shadow: 0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 .5px rgba(255,255,255,.12); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text); font-family: var(--font-sans); font-size: 13px; line-height: 1.45; }
+.page { max-width: 1440px; margin: 0 auto; padding: 28px 24px 60px; }
+.intro { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.intro h1 { font-family: var(--font-serif); font-size: 26px; font-weight: 600; margin: 0; }
+.intro p { margin: 0; color: var(--text3); flex: 1; min-width: 260px; }
+.intro button { font: inherit; border: 1px solid var(--border); background: var(--surface); color: var(--text2); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+
+/* The window */
+.window { background: var(--bg); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; display: grid; grid-template-columns: 190px 250px 1fr; height: 820px; }
+.sidebar { background: color-mix(in srgb, var(--bg) 70%, var(--hover)); border-right: 1px solid var(--border); padding: 40px 10px 10px; overflow: auto; }
+.lights { position: absolute; margin: -28px 0 0 4px; display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.group { font-size: 11px; font-weight: 600; color: var(--text4); margin: 14px 8px 4px; }
+.navitem { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; color: var(--text2); }
+.navitem .dot { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; color: #fff; font-size: 10px; }
+.navitem.on { background: var(--sel); color: var(--text); font-weight: 500; }
+.navitem .new { margin-left: auto; font-size: 10px; color: var(--accent); }
+
+/* Middle column: industries */
+.middle { border-right: 1px solid var(--border); overflow: auto; background: var(--bg); }
+.mhead { position: sticky; top: 0; background: var(--bg); padding: 14px 12px 8px; border-bottom: 1px solid var(--border2); z-index: 1; }
+.mhead h2 { margin: 0 0 8px; font-family: var(--font-serif); font-size: 20px; font-weight: 600; }
+.search { width: 100%; font: inherit; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.ilist { padding: 6px; }
+.irow { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
+.irow:hover { background: var(--hover); }
+.irow.on { background: var(--sel); }
+.irow .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.irow .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irow .pct { font-variant-numeric: tabular-nums; font-size: 12px; }
+.irow.sub { padding-left: 26px; color: var(--text2); font-size: 12px; }
+.irow.subsub { padding-left: 40px; color: var(--text3); font-size: 12px; }
+.lhead { font-size: 11px; font-weight: 600; color: var(--text4); margin: 10px 8px 2px; }
+.status { font-size: 11px; color: var(--text4); margin-top: 6px; }
+.picker { width: 100%; font: inherit; font-weight: 500; padding: 5px 8px; margin-bottom: 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.about { color: var(--text3); font-size: 12px; margin: -8px 0 14px; }
+.about a { color: var(--accent); cursor: pointer; }
+.irow.all .name { font-weight: 600; }
+.irow .count { color: var(--text4); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Detail */
+.detail { overflow: auto; background: var(--surface); }
+.dinner { padding: 22px 28px 40px; }
+.backbar { font-size: 12px; color: var(--accent); cursor: pointer; margin-bottom: 6px; display: inline-block; }
+.crumbs { font-size: 12px; color: var(--text3); margin-bottom: 2px; }
+.crumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.titlerow { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.titlerow h1 { font-family: var(--font-serif); font-size: 30px; font-weight: 600; margin: 0; line-height: 1.15; }
+.titlerow .big { font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 500; }
+.titlerow .spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; background: var(--bg); }
+.seg button { font: inherit; font-size: 12px; border: 0; background: none; color: var(--text2); padding: 3px 9px; cursor: pointer; }
+.seg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--border); }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.controls label { color: var(--text3); font-size: 12px; }
+.summary { display: flex; gap: 24px; flex-wrap: wrap; margin: -4px 0 16px; color: var(--text3); font-size: 12px; }
+.summary b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Heat map */
+.map { position: relative; width: 100%; height: 440px; border-radius: 10px; overflow: hidden; background: var(--bg); }
+.map.small { height: 300px; }
+.tile { position: absolute; border: 1px solid var(--surface); color: var(--tile-text); overflow: hidden; cursor: pointer; transition: filter .1s; }
+.tile:hover { filter: brightness(1.12); z-index: 2; }
+.tile .t { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2px; line-height: 1.15; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
+.tile .t b { font-weight: 600; }
+.group-tile { position: absolute; background: var(--surface); border: 1px solid var(--surface); }
+.group-tile > .gh { height: 18px; font-size: 11px; font-weight: 600; padding: 1px 6px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: var(--bg); }
+.group-tile > .gh:hover { color: var(--accent); }
+.group-tile > .gh span { font-weight: 500; margin-left: 4px; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text3); margin: 8px 0 22px; }
+.legend .bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.legend .bar i { width: 26px; display: block; }
+.hint { margin-left: auto; color: var(--text4); }
+
+/* Stock list */
+h3 { font-family: var(--font-serif); font-size: 19px; font-weight: 600; margin: 22px 0 6px; display: flex; align-items: baseline; gap: 10px; }
+h3 a { cursor: pointer; color: inherit; text-decoration: none; }
+h3 a:hover { color: var(--accent); }
+h3 .pct { font-family: var(--font-sans); font-size: 13px; font-weight: 500; }
+h3 .more { margin-left: auto; font-family: var(--font-sans); font-size: 12px; font-weight: 400; color: var(--accent); cursor: pointer; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: right; font-size: 11px; font-weight: 600; color: var(--text3); padding: 6px 8px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th.sorted { color: var(--text); }
+td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--hover); }
+.sym { font-weight: 600; }
+.cname { color: var(--text3); font-size: 12px; margin-left: 6px; }
+.badge { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: 1px; }
+.badge.own { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.badge.ai { background: color-mix(in srgb, #9333ea 16%, transparent); color: #9333ea; cursor: help; }
+.legend .sample { color: var(--text3); font-style: italic; }
+.badge.watch { background: color-mix(in srgb, var(--teal) 16%, transparent); color: var(--teal); }
+.pill { display: inline-block; min-width: 62px; padding: 2px 6px; border-radius: 5px; color: #fff; font-weight: 600; font-size: 12px; text-align: right; }
+.muted { color: var(--text3); }
+.x { color: var(--text4); cursor: pointer; padding: 0 4px; visibility: hidden; }
+tr:hover .x { visibility: visible; }
+.x:hover { color: var(--red); }
+.addrow td { color: var(--accent); cursor: pointer; }
+.addrow:hover td { background: none !important; }
+.addrow input { font: inherit; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); width: 110px; text-transform: uppercase; }
+svg.spark { vertical-align: middle; }
+
+/* Ticker page stand-in */
+.tickerpage .note { border: 1px dashed var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text3); margin-top: 18px; }
+.tickerpage .chartbox { height: 220px; border-radius: 10px; background: var(--bg); margin-top: 14px; display: grid; place-items: center; }
+
+/* Design notes under the window */
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 26px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.card h4 { margin: 0 0 8px; font-family: var(--font-serif); font-size: 16px; }
+.card ul { margin: 0; padding-left: 18px; color: var(--text2); }
+.card li { margin: 4px 0; }
+code { font-size: 12px; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+
+@media (max-width: 1000px) {
+  .window { grid-template-columns: 1fr; height: auto; }
+  .sidebar { display: none; }
+  .middle { max-height: 260px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .dinner { padding: 16px; }
+  .map { height: 360px; }
+  .hide-narrow { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Explore — prototype</h1>
+    <p>A new Money section that keeps a master list of every company in the S&amp;P 500, the Nasdaq-100 and five tech indexes (semiconductors, two cybersecurity, cloud software, FANG+), grouped by sector, industry and sub-industry. Pick a list at the top of the middle column. Click a heat map tile or a row on the left to drill down; click a stock for its ticker page. The companies, their groups, prices, 1D changes and market caps are real (close of Oct 26, 2026); the other periods are made up.</p>
+    <button id="theme">Light / Dark</button>
+  </div>
+
+  <div class="window">
+    <nav class="sidebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="group">Notebook</div>
+      <div class="navitem"><span class="dot" style="background:#d97706">✎</span>Notes</div>
+      <div class="navitem"><span class="dot" style="background:#ec407a">☾</span>Journal</div>
+      <div class="group">Money</div>
+      <div class="navitem"><span class="dot" style="background:#16a34a">$</span>Finance</div>
+      <div class="navitem"><span class="dot" style="background:#0d9488">↗</span>Trading</div>
+      <div class="navitem on"><span class="dot" style="background:#0891b2">▦</span>Explore<span class="new">new</span></div>
+      <div class="navitem"><span class="dot" style="background:#dc2626">≡</span>News</div>
+      <div class="group">Library</div>
+      <div class="navitem"><span class="dot" style="background:#2563eb">⛓</span>Links</div>
+      <div class="navitem"><span class="dot" style="background:#4f46e5">▤</span>Documents</div>
+      <div class="group">Assistant</div>
+      <div class="navitem"><span class="dot" style="background:#9333ea">✦</span>Agent</div>
+    </nav>
+
+    <section class="middle">
+      <div class="mhead">
+        <h2>Explore</h2>
+        <div id="indexseg"></div>
+        <input class="search" id="search" placeholder="Search industries, companies or tickers">
+        <div class="status" id="status"></div>
+      </div>
+      <div class="ilist" id="ilist"></div>
+    </section>
+
+    <section class="detail"><div class="dinner" id="detail"></div></section>
+  </div>
+
+  <div class="notes">
+    <div class="card">
+      <h4>How the app builds the list</h4>
+      <ul>
+        <li><b>S&amp;P 500:</b> Wikipedia's “List of S&amp;P 500 companies” has every member with its sector and sub-industry. Explore reads it when first opened and again each week.</li>
+        <li><b>Nasdaq-100:</b> Nasdaq's own list of members (the same request also returns prices and market caps).</li>
+        <li><b>Industries:</b> the sector → industry → sub-industry tree is the published standard (GICS), built into the app. It rarely changes.</li>
+        <li><b>Tech indexes:</b> Semiconductors (SOX), Cybersecurity (CIBR's index) and Cloud Software (WCLD's index) come from Nasdaq's index site; Cyber Security (ISE) from Amplify's daily HACK holdings; FANG+ from its ETN's holdings. Shares listed only abroad (Trend Micro, Thales, Atos) are left out. The app checks each member's name as well as its ticker, since Atos's ticker ATO is also Atmos Energy's in the US.</li>
+        <li><b>The 90 companies outside the S&amp;P 500</b> (ASML, Cloudflare, Zscaler, Snowflake…) have no published group, so your AI model places each one once (<span class="badge ai">AI</span>). You can move any of them.</li>
+        <li>When a list changes, Explore notes who joined and who left, e.g. “Added RDDT, removed …”.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>The tree</h4>
+      <ul>
+        <li>S&amp;P 500: 503 listings (500 companies) in 11 sectors, 69 industries and 126 sub-industries.</li>
+        <li>Nasdaq-100: 101 listings (100 companies), 86 of them also in the S&amp;P 500. It leaves out banks and insurers, so PayPal is its only Financials stock and it has no Real Estate.</li>
+        <li>Two share classes of one company count once (GOOGL with GOOG, FOXA with FOX, NWSA with NWS), so Alphabet isn't twice the size on the map.</li>
+        <li>593 companies across all seven lists; a company in several lists is one entry, and its rows show every list it's in.</li>
+        <li><b>Top 5</b> keeps the five largest companies in each sub-industry: the leaders.</li>
+        <li>The tech lists (10–64 stocks) open straight to their stocks, grouped by sub-industry.</li>
+        <li>Left out: IGV (iShares doesn't let apps download its holdings), XLK (the same as S&amp;P 500 › Information Technology) and the Nasdaq Composite (3,000+ stocks).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Heat map</h4>
+      <ul>
+        <li>Color is the change over the chosen period; size is market cap, or equal sizes.</li>
+        <li>Each level: All → sector (industries) → industry (sub-industries) → sub-industry (stocks) → ticker page. Back (⌘[) goes up.</li>
+        <li>A group's change is the cap-weighted average of its companies.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Reused from Finance and Trading</h4>
+      <ul>
+        <li>1D prices from Nasdaq's quote list or Trading's Yahoo batch quotes (<code>TradingModel.quotes</code>), refreshed every few minutes while Explore is open and the market is open.</li>
+        <li>1W–1Y changes from the cached price history (<code>FinanceModel.cachedPriceHistory</code>), fetched in the background for all ~520 stocks and kept for a day.</li>
+        <li>A stock opens the existing ticker page (<code>TickerDetail</code>). Badges come from your holdings and the Trading watchlist.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// From Wikipedia (S&P 500 list, GICS), Nasdaq (Nasdaq-100 list, index members, quotes), Amplify (HACK) and stockanalysis.com (FNGS), Oct 26, 2026.
+const DATA = {"asOf":"Oct 26, 2026","gics":{"10101020":"Oil & Gas Equipment & Services","10102010":"Integrated Oil & Gas","10102020":"Oil & Gas Exploration & Production","10102030":"Oil & Gas Refining & Marketing","10102040":"Oil & Gas Storage & Transportation","15101010":"Commodity Chemicals","15101030":"Fertilizers & Agricultural Chemicals","15101040":"Industrial Gases","15101050":"Specialty Chemicals","15102010":"Construction Materials","15103010":"Metal, Glass & Plastic Containers","15103020":"Paper & Plastic Packaging Products & Materials","15104025":"Copper","15104030":"Gold","15104050":"Steel","201010":"Aerospace & Defense","20101010":"Aerospace & Defense","201020":"Building Products","20102010":"Building Products","201030":"Construction & Engineering","20103010":"Construction & Engineering","20104010":"Electrical Components & Equipment","20104020":"Heavy Electrical Equipment","201050":"Industrial Conglomerates","20105010":"Industrial Conglomerates","20106010":"Construction Machinery & Heavy Transportation Equipment","20106015":"Agricultural & Farm Machinery","20106020":"Industrial Machinery & Supplies & Components","201070":"Trading Companies & Distributors","20107010":"Trading Companies & Distributors","20201050":"Environmental & Facilities Services","20201070":"Diversified Support Services","20202010":"Human Resource & Employment Services","20202020":"Research & Consulting Services","20202030":"Data Processing & Outsourced Services","203010":"Air Freight & Logistics","20301010":"Air Freight & Logistics","203020":"Passenger Airlines","20302010":"Passenger Airlines","20304010":"Rail Transportation","20304030":"Cargo Ground Transportation","20304040":"Passenger Ground Transportation","25101010":"Automotive Parts & Equipment","25102010":"Automobile Manufacturers","25201010":"Consumer Electronics","25201030":"Homebuilding","252020":"Leisure Products","25202010":"Leisure Products","25203010":"Apparel, Accessories & Luxury Goods","25203020":"Footwear","25301010":"Casinos & Gaming","25301020":"Hotels, Resorts & Cruise Lines","25301040":"Restaurants","25302020":"Specialized Consumer Services","255010":"Distributors","25501010":"Distributors","255030":"Broadline Retail","25503030":"Broadline Retail","25504010":"Apparel Retail","25504020":"Computer & Electronics Retail","25504030":"Home Improvement Retail","25504040":"Other Specialty Retail","25504050":"Automotive Retail","25504060":"Homefurnishing Retail","30101020":"Food Distributors","30101030":"Food Retail","30101040":"Consumer Staples Merchandise Retail","30201020":"Distillers & Vintners","30201030":"Soft Drinks & Non-alcoholic Beverages","30202010":"Agricultural Products & Services","30202030":"Packaged Foods & Meats","302030":"Tobacco","30203010":"Tobacco","303010":"Household Products","30301010":"Household Products","303020":"Personal Care Products","30302010":"Personal Care Products","35101010":"Health Care Equipment","35101020":"Health Care Supplies","35102010":"Health Care Distributors","35102015":"Health Care Services","35102020":"Health Care Facilities","35102030":"Managed Health Care","351030":"Health Care Technology","35103010":"Health Care Technology","352010":"Biotechnology","35201010":"Biotechnology","352020":"Pharmaceuticals","35202010":"Pharmaceuticals","352030":"Life Sciences Tools & Services","35203010":"Life Sciences Tools & Services","40101010":"Diversified Banks","40101015":"Regional Banks","40201030":"Multi-Sector Holdings","40201060":"Transaction & Payment Processing Services","402020":"Consumer Finance","40202010":"Consumer Finance","40203010":"Asset Management & Custody Banks","40203020":"Investment Banking & Brokerage","40203040":"Financial Exchanges & Data","40301010":"Insurance Brokers","40301020":"Life & Health Insurance","40301030":"Multi-line Insurance","40301040":"Property & Casualty Insurance","40301050":"Reinsurance","45102010":"IT Consulting & Other Services","45103010":"Application Software","45103020":"Systems Software","452010":"Communications Equipment","45201020":"Communications Equipment","452020":"Technology Hardware, Storage & Peripherals","45202030":"Technology Hardware, Storage & Peripherals","45203010":"Electronic Equipment & Instruments","45203015":"Electronic Components","45203020":"Electronic Manufacturing Services","45203030":"Technology Distributors","45301010":"Semiconductor Materials & Equipment","45301020":"Semiconductors","50101020":"Integrated Telecommunication Services","501020":"Wireless Telecommunication Services","50102010":"Wireless Telecommunication Services","50201010":"Advertising","50201020":"Broadcasting","50201030":"Cable & Satellite","50201040":"Publishing","50202010":"Movies & Entertainment","50202020":"Interactive Home Entertainment","502030":"Interactive Media & Services","50203010":"Interactive Media & Services","551010":"Electric Utilities","55101010":"Electric Utilities","551020":"Gas Utilities","55102010":"Gas Utilities","551030":"Multi-Utilities","55103010":"Multi-Utilities","551040":"Water Utilities","55104010":"Water Utilities","55105010":"Independent Power Producers & Energy Traders","601025":"Industrial REITs","60102510":"Industrial REITs","601030":"Hotel & Resort REITs","60103010":"Hotel & Resort REITs","601040":"Office REITs","60104010":"Office REITs","601050":"Health Care REITs","60105010":"Health Care REITs","60106010":"Multi-Family Residential REITs","60106020":"Single-Family Residential REITs","601070":"Retail REITs","60107010":"Retail REITs","60108010":"Other Specialized REITs","60108020":"Self-Storage REITs","60108030":"Telecom Tower REITs","60108040":"Timber REITs","60108050":"Data Center REITs","60201040":"Real Estate Services","10":"Energy","1010":"Energy","101010":"Energy Equipment & Services","101020":"Oil, Gas & Consumable Fuels","15":"Materials","1510":"Materials","151010":"Chemicals","151020":"Construction Materials","151030":"Containers & Packaging","151040":"Metals & Mining","20":"Industrials","2010":"Capital Goods","201040":"Electrical Equipment","201060":"Machinery","2020":"Commercial & Professional Services","202010":"Commercial Services & Supplies","202020":"Professional Services","2030":"Transportation","203040":"Ground Transportation","25":"Consumer Discretionary","2510":"Automobiles & Components","251010":"Automobile Components","251020":"Automobiles","2520":"Consumer Durables & Apparel","252010":"Household Durables","252030":"Textiles, Apparel & Luxury Goods","2530":"Consumer Services","253010":"Hotels, Restaurants & Leisure","253020":"Diversified Consumer Services","2550":"Consumer Discretionary Distribution & Retail","255040":"Specialty Retail","30":"Consumer Staples","3010":"Consumer Staples Distribution & Retail","301010":"Consumer Staples Distribution & Retail","3020":"Food, Beverage & Tobacco","302010":"Beverages","302020":"Food Products","3030":"Household & Personal Products","35":"Health Care","3510":"Health Care Equipment & Services","351010":"Health Care Equipment & Supplies","351020":"Health Care Providers & Services","3520":"Pharmaceuticals, Biotechnology & Life Sciences","40":"Financials","4010":"Banks","401010":"Banks","4020":"Financial Services","402010":"Financial Services","402030":"Capital Markets","4030":"Insurance","403010":"Insurance","45":"Information Technology","4510":"Software & Services","451020":"IT Services","451030":"Software","4520":"Technology Hardware & Equipment","452030":"Electronic Equipment, Instruments & Components","4530":"Semiconductors & Semiconductor Equipment","453010":"Semiconductors & Semiconductor Equipment","50":"Communication Services","5010":"Telecommunication Services","501010":"Diversified Telecommunication Services","5020":"Media & Entertainment","502010":"Media","502020":"Entertainment","55":"Utilities","5510":"Utilities","551050":"Independent Power and Renewable Electricity Producers","60":"Real Estate","6010":"Equity Real Estate Investment Trusts (REITs)","601060":"Residential REITs","601080":"Specialized REITs","6020":"Real Estate Management & Development","602010":"Real Estate Management & Development","45102030":"Internet Services & Infrastructure"},"stocks":[["A","Agilent Technologies","35203010","SP",173.07,-0.472,48.79,1760839,0],["AAPL","Apple Inc.","45202030","SP,NDX,FANG",347.725,-0.142,5074.76,39539912,0],["ABBV","AbbVie","35201010","SP",285.64,0.158,504.76,4631891,0],["ABNB","Airbnb","25301020","SP,NDX",172.01,-2.134,103.0,2536538,0],["ABT","Abbott Laboratories","35101010","SP",103.7,1.161,179.44,10296897,0],["ACGL","Arch Capital Group","40301040","SP",101.69,-0.974,34.7,2293599,0],["ACN","Accenture","45102010","SP,NQCYBR",249.37,-3.621,166.76,6846565,0],["ADBE","Adobe Inc.","45103010","SP,NDX,EMCLOUD",263.82,-2.488,102.68,3134967,0],["ADI","Analog Devices","45301020","SP,NDX,SOX",391.07,1.377,189.5,2485634,0],["ADM","Archer Daniels Midland","30202010","SP",80.14,0.376,38.62,2406556,0],["ADP","Automatic Data Processing","20202010","SP,NDX",304.16,-1.228,120.52,1694200,0],["ADSK","Autodesk","45103010","SP,NDX",252.2,-1.079,52.71,1320532,0],["AEE","Ameren","55103010","SP",108.04,-0.826,29.91,1993001,0],["AEP","American Electric Power","55101010","SP,NDX",129.69,-0.727,70.6,2836798,0],["AES","AES Corporation","55105010","SP",15.0,0.2,10.7,7406875,0],["AFL","Aflac","40301020","SP",120.51,-2.239,60.42,1564462,0],["AGYS","Agilysys Inc","45103010","EMCLOUD",120.69,0.516,3.4,304568,1],["AIG","American International Group","40301030","SP",81.26,-2.132,42.49,5139762,0],["AIZ","Assurant","40301030","SP",284.75,-1.419,14.04,379055,0],["AJG","Arthur J. Gallagher & Co.","40301010","SP",268.04,-1.085,68.7,1832506,0],["AKAM","Akamai Technologies","45102030","SP,NQCYBR",93.53,2.634,13.44,4017889,0],["ALAB","Astera Labs, Inc","45301020","NDX,SOX",257.16,-0.256,44.61,2445718,1],["ALB","Albemarle Corporation","15101050","SP",93.67,1.221,11.05,1571313,0],["ALGN","Align Technology","35101020","SP",154.51,-0.643,10.98,911756,0],["ALKT","Alkami Technology Inc","45103010","EMCLOUD",16.03,0.502,1.71,1846563,1],["ALL","Allstate","40301040","SP",253.19,-2.281,64.02,1151612,0],["ALLE","Allegion","20102010","SP",178.98,1.394,15.09,1811304,0],["ALNY","Alnylam Pharmaceuticals, Inc","35201010","NDX",224.03,-1.43,29.98,1055962,1],["AMAT","Applied Materials","45301010","SP,NDX,SOX",377.24,0.442,299.38,6917225,0],["AMCR","Amcor","15103020","SP",46.11,-0.367,21.32,3164061,0],["AMD","Advanced Micro Devices","45301020","SP,NDX,SOX",516.79,1.744,843.65,15178289,0],["AME","Ametek","20104010","SP",240.03,0.507,55.03,988818,0],["AMGN","Amgen","35201010","SP,NDX",439.26,-1.793,237.48,2074553,0],["AMP","Ameriprise Financial","40203010","SP",492.19,-0.934,44.25,644026,0],["AMT","American Tower","60108030","SP",188.97,4.076,88.05,8852789,0],["AMZN","Amazon","25503030","SP,NDX,FANG",248.0,-0.951,2675.01,25569196,0],["ANET","Arista Networks","45201020","SP,NQCYBR",172.37,0.76,217.4,5013120,0],["AON","Aon plc","40301010","SP",303.52,-1.069,64.38,1108597,0],["AOS","A. O. Smith","20102010","SP",61.65,-1.313,8.38,1420685,0],["APA","APA Corporation","10102020","SP",51.9,4.976,18.18,7067925,0],["APD","Air Products","15101040","SP",307.15,-0.347,68.4,913522,0],["APH","Amphenol","45203015","SP",74.09,1.396,182.7,12989849,0],["APO","Apollo Global Management","40203010","SP",112.83,-1.742,66.63,2780455,0],["APP","AppLovin","50201010","SP,NDX",260.25,-1.525,87.09,2352283,0],["APPF","AppFolio Inc","45103010","EMCLOUD",210.62,-3.087,7.47,618713,1],["APTV","Aptiv","25101010","SP",42.69,-2.556,8.86,2993916,0],["ARE","Alexandria Real Estate Equities","60104010","SP",43.02,-0.715,7.5,2512404,0],["ARES","Ares Management","40203010","SP",122.08,-1.31,40.32,1890964,0],["ARM","Arm Holdings plc","45301020","NDX,SOX",210.33,0.109,223.8,2439082,1],["ASAN","Asana Inc","45103010","EMCLOUD",12.02,4.522,2.75,4633825,1],["ASML","ASML Holding N.V","45301010","NDX,SOX",1571.8,0.722,605.8,999172,1],["ATEN","A10 Networks Inc","45201020","NQCYBR,HACK",25.45,3.624,1.85,578767,1],["ATO","Atmos Energy","55102010","SP",172.21,-0.978,29.1,1252638,0],["AVGO","Broadcom","45301020","SP,NDX,SOX,NQCYBR,HACK,FANG",321.68,-0.483,1535.58,15917356,0],["AVPT","AvePoint Inc","45103010","EMCLOUD",16.51,2.674,3.49,1695192,1],["AVY","Avery Dennison","15103020","SP",181.83,-1.533,13.78,774314,0],["AWK","American Water Works","55104010","SP",142.75,-0.335,28.37,1978050,0],["AXON","Axon Enterprise","20101010","SP,NDX",420.37,1.392,34.15,849259,0],["AXP","American Express","40202010","SP",313.22,-3.675,211.52,4124238,0],["AZO","AutoZone","25504050","SP",3200.76,-2.138,52.25,118432,0],["BA","Boeing","20101010","SP",188.35,0.427,148.87,6588968,0],["BAC","Bank of America","40101010","SP",50.56,-1.018,353.55,27377674,0],["BAH","Booz Allen Hamilton Holding Corporation","20202020","NQCYBR",78.32,-0.318,9.42,3569072,1],["BALL","Ball Corporation","15103010","SP",64.76,-1.596,17.14,1812236,0],["BAX","Baxter International","35101010","SP",25.3,-1.365,13.08,4936215,0],["BB","BlackBerry Limited","45103020","NQCYBR",8.92,3.842,5.24,13431247,1],["BBY","Best Buy","25504020","SP",99.87,0.04,20.95,3979631,0],["BDX","Becton Dickinson","35101010","SP",198.91,-0.753,54.18,1304247,0],["BE","Bloom Energy","20104010","SP",193.3,-11.237,57.15,36015948,0],["BEN","Franklin Resources","40203010","SP",31.06,-1.459,15.78,4136533,0],["BF.B","Brown–Forman","30201020","SP",29.41,-2.551,0.0,2357405,0],["BG","Bunge Global","30202010","SP",103.22,0.068,19.83,696923,0],["BIIB","Biogen","35201010","SP",250.69,-1.241,37.04,1157376,0],["BILL","BILL Holdings Inc","45103010","EMCLOUD",50.7,0.059,4.32,1024476,1],["BKNG","Booking Holdings","25301020","SP,NDX",155.83,-3.271,117.09,5931920,0],["BKR","Baker Hughes","10101020","SP,NDX",55.86,4.178,55.45,5528819,0],["BL","BlackLine Inc","45103010","EMCLOUD",34.8,1.251,2.02,1230399,1],["BLK","BlackRock","40203010","SP",1118.25,-1.674,173.18,813365,0],["BMY","Bristol Myers Squibb","35202010","SP",61.48,-2.413,125.59,9763149,0],["BNY","BNY Mellon","40203010","SP",145.27,-0.034,98.57,2175972,0],["BR","Broadridge Financial Solutions","20202030","SP",183.28,-1.526,20.69,1078056,0],["BRK.B","Berkshire Hathaway","40201030","SP",542.19,-0.874,1196.24,4309789,0],["BRO","Brown & Brown","40301010","SP",72.97,-2.041,24.42,2500017,0],["BRZE","Braze Inc","45103010","EMCLOUD",45.88,0.044,5.21,6356717,1],["BSX","Boston Scientific","35101010","SP",45.69,-0.696,66.22,8772775,0],["BX","Blackstone Inc.","40203010","SP",117.97,-0.657,88.55,7209635,0],["BXP","BXP, Inc.","60104010","SP",62.1,0.992,9.91,1468235,0],["C","Citigroup","40101010","SP",120.62,-1.543,202.33,7047696,0],["CAH","Cardinal Health","35102010","SP",249.57,-2.374,57.79,1665850,0],["CARR","Carrier Global","20102010","SP",56.24,-0.425,46.36,3883451,0],["CASY","Casey's","30101030","SP",699.26,-2.016,25.84,435787,0],["CAT","Caterpillar Inc.","20106010","SP",687.0,-2.422,315.8,3019352,0],["CB","Chubb Limited","40301040","SP",355.11,-2.429,137.0,1661005,0],["CBOE","Cboe Global Markets","40203040","SP",340.42,3.875,38.07,1865139,0],["CBRE","CBRE Group","60201040","SP",123.3,-6.05,35.53,4565009,0],["CCEP","Coca-Cola Europacific Partners plc","30201030","NDX",110.84,-2.968,50.32,1623406,1],["CCI","Crown Castle","60108030","SP",85.97,9.057,36.58,17324090,0],["CCL","Carnival Corporation","25301020","SP",26.11,-3.582,35.11,17349514,0],["CDNS","Cadence Design Systems","45103010","SP,NDX",316.49,2.209,87.16,2320979,0],["CDW","CDW Corporation","45203030","SP",165.11,0.298,20.64,1678651,0],["CEG","Constellation Energy","55101010","SP,NDX",253.45,-0.69,89.8,2888294,0],["CF","CF Industries","15101030","SP",120.68,1.788,18.26,2034710,0],["CFG","Citizens Financial Group","40101015","SP",65.14,-0.153,27.44,6803843,0],["CHD","Church & Dwight","30301010","SP",105.19,-3.371,24.95,1966247,0],["CHKP","Check Point Software Technologies Ltd","45103020","NQCYBR,HACK",159.03,4.639,16.24,2568852,1],["CHRW","C.H. Robinson","20301010","SP",141.17,-0.801,16.5,1251913,0],["CHTR","Charter Communications","50201030","SP",108.61,-2.827,12.44,1996305,0],["CI","Cigna","35102015","SP",306.95,-2.827,81.11,1780485,0],["CIEN","Ciena","45201020","SP",320.26,-0.738,45.42,1970880,0],["CINF","Cincinnati Financial","40301040","SP",176.3,-1.111,27.06,560101,0],["CL","Colgate-Palmolive","30301010","SP",94.04,-3.44,74.97,4735829,0],["CLBT","Cellebrite DI Ltd","45103010","EMCLOUD",12.1,2.629,3.04,1394077,1],["CLX","Clorox","30301010","SP",86.4,-2.549,10.45,1977489,0],["CMCSA","Comcast","50201030","SP,NDX",22.69,-0.657,80.57,31340129,0],["CME","CME Group","40203040","SP",305.71,-0.088,109.93,2180290,0],["CMG","Chipotle Mexican Grill","25301040","SP",27.52,-2.203,34.82,18706066,0],["CMI","Cummins","20106010","SP",517.4,-0.41,71.23,905025,0],["CMS","CMS Energy","55103010","SP",69.58,-1.024,21.82,3235771,0],["CNC","Centene Corporation","35102030","SP",70.17,-1.502,34.66,4314175,0],["CNP","CenterPoint Energy","55103010","SP",41.07,-0.316,27.05,6878444,0],["COF","Capital One","40202010","SP",201.34,-1.027,123.52,3763036,0],["COHR","Coherent Corp.","45203015","SP,SOX",209.29,0.707,41.22,6178937,0],["COIN","Coinbase","40203040","SP",164.45,-2.744,43.39,6595332,0],["COO","Cooper Companies (The)","35101020","SP",61.21,-0.714,11.64,1817083,0],["COP","ConocoPhillips","10102020","SP",150.8,3.55,181.16,7254765,0],["COR","Cencora","35102010","SP",331.0,-2.21,63.16,1168294,0],["COST","Costco","30101040","SP,NDX",1003.32,-1.462,444.6,2408245,0],["CPAY","Corpay","40201060","SP",408.46,-1.578,26.82,285131,0],["CPRT","Copart","20201070","SP,NDX",29.0,-0.309,26.86,10152613,0],["CPT","Camden Property Trust","60106010","SP",102.0,-0.72,10.26,1018456,0],["CRDO","Credo Technology Group Holding Ltd","45301020","SOX",147.29,-9.51,27.68,12677521,1],["CRH","CRH plc","15102010","SP",84.89,-1.782,56.48,3661943,0],["CRL","Charles River Laboratories","35203010","SP",345.37,1.681,16.49,822576,0],["CRM","Salesforce","45103010","SP,EMCLOUD",248.57,-0.687,204.57,5843530,0],["CRWD","CrowdStrike","45103020","SP,NDX,NQCYBR,EMCLOUD,HACK",257.57,8.25,263.73,13400178,0],["CRWV","CoreWeave, Inc","45102030","NDX",54.235,-2.455,29.91,46947495,1],["CSCO","Cisco","45201020","SP,NDX,NQCYBR,HACK",106.5,1.535,419.89,13560892,0],["CSGP","CoStar Group","60201040","SP",33.92,-4.316,13.74,7393212,0],["CSX","CSX Corporation","20304010","SP,NDX",50.79,-1.703,93.63,14652445,0],["CTAS","Cintas","20201070","SP,NDX",224.1,0.027,88.98,1934718,0],["CTSH","Cognizant","45102010","SP",70.54,-4.314,31.77,6347876,0],["CVLT","Commvault Systems Inc","45103020","NQCYBR",169.37,0.93,7.02,897192,1],["CVNA","Carvana","25504050","SP",57.81,-1.55,63.62,6284302,0],["CVS","CVS Health","35102015","SP",93.47,-1.069,119.55,4601861,0],["CVX","Chevron Corporation","10102010","SP",233.21,2.881,460.77,8143080,0],["CXM","Sprinklr Inc","45103010","EMCLOUD",6.69,0.0,1.55,2052619,1],["D","Dominion Energy","55103010","SP",65.2,-0.306,57.35,5127231,0],["DAL","Delta Air Lines","20302010","SP",76.78,-3.129,50.51,5468563,0],["DASH","DoorDash","25302020","SP,NDX",179.38,-3.528,77.72,2705453,0],["DD","DuPont","20105010","SP",136.55,1.073,18.44,832606,0],["DDOG","Datadog","45103010","SP,NDX,NQCYBR,EMCLOUD",269.65,4.617,96.82,2239948,0],["DE","Deere & Company","20106015","SP",646.15,0.393,174.22,693951,0],["DECK","Deckers Brands","25203020","SP",81.09,-4.913,11.06,9298393,0],["DELL","Dell Technologies","45202030","SP",456.44,0.771,290.21,4336468,0],["DG","Dollar General","30101040","SP",132.69,-4.615,29.27,1926024,0],["DGX","Quest Diagnostics","35102015","SP",241.89,-0.571,26.7,933671,0],["DHI","D. R. Horton","25201030","SP",147.48,-0.122,41.25,2656557,0],["DHR","Danaher Corporation","35203010","SP",230.5,0.326,162.16,3935941,0],["DIS","Walt Disney Company (The)","50202010","SP",112.52,-0.539,194.29,6599972,0],["DLR","Digital Realty","60108050","SP",172.37,0.837,63.78,1583243,0],["DLTR","Dollar Tree","30101040","SP",125.31,-4.373,23.51,2421269,0],["DOC","Healthpeak Properties","60105010","SP",19.25,-0.465,13.27,6178474,0],["DOCN","DigitalOcean Holdings Inc","45102030","EMCLOUD",93.22,1.326,10.96,2285538,1],["DOCU","DocuSign Inc","45103010","EMCLOUD",85.27,1.019,15.94,1996274,1],["DOV","Dover Corporation","20106020","SP",199.2,1.898,26.5,1701202,0],["DOW","Dow Inc.","15101010","SP",32.61,2.515,23.56,9385613,0],["DPZ","Domino's","25301040","SP",313.61,-1.287,10.32,443807,0],["DRI","Darden Restaurants","25301040","SP",212.4,-2.372,24.03,692067,0],["DT","Dynatrace Inc","45103010","NQCYBR,EMCLOUD",64.05,1.073,18.51,7420537,1],["DTE","DTE Energy","55103010","SP",131.89,-0.879,27.44,1171209,0],["DUK","Duke Energy","55101010","SP",124.98,-0.335,97.45,3158469,0],["DVA","DaVita","35102015","SP",183.64,-1.322,11.72,618100,0],["DVN","Devon Energy","10102020","SP",51.39,4.494,56.53,13280523,0],["DXCM","Dexcom","35101010","SP,NDX",77.94,-0.485,29.41,5218324,0],["EBAY","eBay Inc.","25503030","SP",121.41,-0.516,54.03,3556393,0],["ECHO","EchoStar","50102010","SP",89.08,3.835,25.91,4000093,0],["ECL","Ecolab","15101050","SP",288.53,-1.29,80.88,994367,0],["ED","Consolidated Edison","55103010","SP",115.74,-0.447,42.8,2538826,0],["EFX","Equifax","20202020","SP",182.36,-2.554,21.34,2039127,0],["EG","Everest Group","40301050","SP",398.6,-2.198,15.28,407014,0],["EIX","Edison International","55101010","SP",57.35,-0.95,22.07,3459519,0],["EL","Estée Lauder Companies (The)","30302010","SP",108.67,0.882,39.37,4064114,0],["ELV","Elevance Health","35102030","SP",439.95,-1.197,95.05,1173820,0],["EME","Emcor","20103010","SP",647.66,-1.931,28.57,577857,0],["EMR","Emerson Electric","20104010","SP",161.59,0.811,90.13,3301123,0],["ENTG","Entegris Inc","45301010","SOX",134.52,4.84,20.55,3304353,1],["EOG","EOG Resources","10102020","SP",163.03,3.21,85.51,3228768,0],["EQIX","Equinix","60108050","SP",955.03,0.253,94.23,605662,0],["EQT","EQT Corporation","10102020","SP",55.63,1.756,34.8,7084248,0],["ERIE","Erie Indemnity","40301010","SP",253.52,-1.277,11.71,172030,0],["ES","Eversource Energy","55101010","SP",67.46,-0.56,25.41,2839905,0],["ESS","Essex Property Trust","60106010","SP",278.35,-1.452,17.89,579007,0],["ESTC","Elastic N.V","45103020","NQCYBR,EMCLOUD",102.43,4.297,10.86,2111751,1],["ETN","Eaton Corporation","20104010","SP",366.11,-0.781,142.2,2266932,0],["ETR","Entergy","55101010","SP",107.34,-0.786,50.09,1761188,0],["EVRG","Evergy","55101010","SP",84.43,-0.612,19.47,1612544,0],["EW","Edwards Lifesciences","35101010","SP",89.07,-1.132,51.34,3101759,0],["EXC","Exelon","55101010","SP,NDX",44.43,-0.936,45.86,5754200,0],["EXE","Expand Energy","10102020","SP",93.23,0.29,21.58,2830461,0],["EXPD","Expeditors International","20301010","SP",196.21,0.01,25.51,989997,0],["EXPE","Expedia Group","25301020","SP",289.01,-3.176,33.09,1090374,0],["EXR","Extra Space Storage","60108020","SP",143.41,0.154,30.3,1146484,0],["F","Ford Motor Company","25102010","SP",11.6,-2.848,45.43,44147001,0],["FANG","Diamondback Energy","10102020","SP,NDX",205.75,4.367,57.62,1769016,0],["FAST","Fastenal","20107010","SP,NDX",51.91,-1.555,59.56,5663890,0],["FCX","Freeport-McMoRan","15104025","SP",65.18,0.913,93.6,11194838,0],["FDS","FactSet","40203040","SP",331.32,-1.231,11.68,542983,0],["FDX","FedEx","20301010","SP",298.72,-1.711,70.7,799029,0],["FDXF","FedEx Freight","20304030","SP",110.05,-0.874,16.45,1014711,0],["FE","FirstEnergy","55101010","SP",46.15,-0.731,26.7,3949152,0],["FER","Ferrovial N.V","20103010","NDX",49.65,-0.121,35.72,1496139,1],["FERG","Ferguson Enterprises","20107010","SP",226.86,-0.198,43.89,969286,0],["FFIV","F5, Inc.","45201020","SP,NQCYBR,HACK",455.42,1.186,25.79,622787,0],["FICO","Fair Isaac","45103010","SP",815.31,-0.967,17.61,387025,0],["FIG","Figma Inc","45103010","EMCLOUD",24.64,2.241,13.13,11637574,1],["FIS","Fidelity National Information Services","40201060","SP",37.53,-1.985,19.35,3984627,0],["FISV","Fiserv","40201060","SP",49.86,-1.889,26.51,5219934,0],["FITB","Fifth Third Bancorp","40101015","SP",52.98,-0.47,48.05,6322302,0],["FIVN","Five9 Inc","45103010","EMCLOUD",37.61,7.151,2.81,2470040,1],["FIX","Comfort Systems USA","20103010","SP",1160.86,-9.263,40.61,1371704,0],["FLEX","Flex Ltd.","45203020","SP",76.55,-0.183,28.28,5963655,0],["FOX","Fox Corporation (Class B)","50201020","SP",59.46,-2.236,25.07,741915,0],["FOXA","Fox Corporation (Class A)","50201020","SP",66.6,-2.446,28.08,5811554,0],["FROG","JFrog Ltd","45103010","NQCYBR,EMCLOUD",100.62,7.168,12.41,1899309,1],["FRSH","Freshworks Inc","45103010","EMCLOUD",15.49,1.11,4.04,3742413,1],["FRT","Federal Realty Investment Trust","60107010","SP",108.72,-0.147,9.45,765793,0],["FSLR","First Solar","45301020","SP",171.99,0.432,18.48,1461354,0],["FSLY","Fastly Inc","45102030","NQCYBR,EMCLOUD,HACK",24.41,8.731,3.89,4987232,1],["FTNT","Fortinet","45103020","SP,NDX,NQCYBR,HACK",179.99,4.052,132.06,3225726,0],["FTV","Fortive","20106020","SP",60.25,0.333,18.2,3361990,0],["GD","General Dynamics","20101010","SP,HACK",349.36,-0.408,94.52,736742,0],["GDDY","GoDaddy","45102030","SP",112.79,-1.691,14.28,1314538,0],["GE","GE Aerospace","20101010","SP",285.64,-2.691,295.17,6519694,0],["GEHC","GE HealthCare","35101010","SP,NDX",71.45,0.098,32.27,2976198,0],["GEN","Gen Digital","45103020","SP,NQCYBR,HACK",24.88,-0.04,14.89,4671231,0],["GEV","GE Vernova","20104020","SP",815.0,-1.501,217.06,3861872,0],["GFS","GlobalFoundries Inc","45301020","SOX",44.39,2.352,24.74,3417369,1],["GILD","Gilead Sciences","35201010","SP,NDX",156.04,-0.732,193.48,6070936,0],["GIS","General Mills","30202030","SP",34.39,-2.246,18.39,6188619,0],["GL","Globe Life","40301020","SP",154.79,-8.087,11.9,1651558,0],["GLW","Corning Inc.","45203015","SP",123.69,-0.242,106.55,8560803,0],["GM","General Motors","25102010","SP",75.92,-1.671,64.04,6713661,0],["GNRC","Generac","20104020","SP",186.92,-0.585,11.03,1113766,0],["GOOG","Alphabet Inc. (Class C)","50203010","SP,NDX",317.28,-1.085,3880.33,10856507,0],["GOOGL","Alphabet Inc. (Class A)","50203010","SP,NDX,NQCYBR,FANG",320.21,-1.237,3916.17,17569920,0],["GPC","Genuine Parts Company","25501010","SP",123.02,-3.868,16.96,1050138,0],["GPN","Global Payments","40201060","SP",82.82,-3.563,21.92,1991587,0],["GRMN","Garmin","25201010","SP",293.74,-0.562,56.65,731677,0],["GS","Goldman Sachs","40203020","SP",875.68,-1.752,254.97,1782206,0],["GTLB","GitLab Inc","45103010","EMCLOUD",56.28,3.209,9.38,3402754,1],["GWW","W. W. Grainger","20106020","SP",1349.9,-0.748,63.58,211359,0],["HAL","Halliburton","10101020","SP",34.92,5.212,29.09,12712080,0],["HAS","Hasbro","25202010","SP",117.44,0.179,16.56,2767895,0],["HBAN","Huntington Bancshares","40101015","SP",15.73,0.447,31.78,27154566,0],["HCA","HCA Healthcare","35102020","SP",469.03,0.368,101.55,1026954,0],["HD","Home Depot (The)","25504030","SP",319.83,-2.411,319.09,3658931,0],["HIG","Hartford (The)","40301040","SP",136.76,-1.929,37.04,1056561,0],["HII","Huntington Ingalls Industries","20101010","SP",274.08,-1.714,10.8,612640,0],["HLT","Hilton Worldwide","25301020","SP",349.63,-2.357,78.69,2128291,0],["HON","Honeywell Technologies","20105010","SP,NDX",221.15,1.301,70.18,2620859,0],["HONA","Honeywell Aerospace","20101010","SP,NDX",163.31,0.178,51.76,3360355,0],["HOOD","Robinhood Markets","40203020","SP",95.07,-1.563,85.48,13966580,0],["HPE","Hewlett Packard Enterprise","45202030","SP",56.69,2.199,75.25,17001411,0],["HPQ","HP Inc.","45202030","SP",33.64,-0.355,30.34,12124914,0],["HRL","Hormel Foods","30202030","SP",21.06,-1.404,11.59,3276600,0],["HSIC","Henry Schein","35102010","SP",84.96,-1.209,9.47,836840,0],["HST","Host Hotels & Resorts","60103010","SP",24.72,-0.603,16.94,7824659,0],["HSY","Hershey Company (The)","30202030","SP",169.64,-3.416,34.09,1861560,0],["HUBB","Hubbell Incorporated","20106020","SP",448.1,0.516,23.67,500976,0],["HUBS","HubSpot Inc","45103010","EMCLOUD",270.88,1.381,13.51,874491,1],["HUM","Humana","35102030","SP",422.07,0.261,50.68,1201425,0],["HWM","Howmet Aerospace","20101010","SP",185.91,-3.818,74.14,6038833,0],["IBKR","Interactive Brokers","40203020","SP",80.28,-2.431,36.37,5767197,0],["IBM","IBM","45102010","SP,NQCYBR",253.56,0.575,239.64,5890203,0],["ICE","Intercontinental Exchange","40203040","SP",162.74,-0.671,91.36,2323596,0],["IDXX","Idexx Laboratories","35101010","SP,NDX",560.38,-1.126,44.15,398279,0],["IEX","IDEX Corporation","20106020","SP",229.05,0.956,16.89,771093,0],["IFF","International Flavors & Fragrances","15101050","SP",94.15,0.341,24.02,1483777,0],["ILMN","Illumina, Inc.","35203010","SP",269.42,0.007,40.68,1262922,0],["INCY","Incyte","35201010","SP",115.71,-1.043,23.45,1477042,0],["INFY","Infosys Limited","45102010","NQCYBR",12.35,-6.581,50.1,45960039,1],["INTA","Intapp Inc","45103010","EMCLOUD",47.99,1.717,3.68,914924,1],["INTC","Intel","45301020","SP,NDX,SOX",86.96,1.719,459.59,72093934,0],["INTU","Intuit","45103010","SP,NDX",343.39,-3.243,91.77,2534409,0],["INVH","Invitation Homes","60106020","SP",27.54,0.036,16.27,6620893,0],["IOT","Samsara Inc","45103010","EMCLOUD",44.92,2.604,26.31,3105939,1],["IP","International Paper","15103020","SP",33.19,-1.455,17.58,4636587,0],["IQV","IQVIA","35203010","SP",279.36,0.374,45.98,981421,0],["IR","Ingersoll Rand","20106020","SP",73.48,-0.85,28.51,5660307,0],["IRM","Iron Mountain","60108010","SP",109.96,-0.633,32.74,959478,0],["ISRG","Intuitive Surgical","35101010","SP,NDX",452.29,1.902,156.78,3005113,0],["IT","Gartner","45102010","SP",230.28,-1.774,14.54,1195799,0],["ITW","Illinois Tool Works","20106020","SP",275.75,-1.25,78.53,1441527,0],["IVZ","Invesco","40203010","SP",28.06,-2.536,12.39,8257221,0],["J","Jacobs Solutions","20103010","SP",145.06,-0.82,16.98,772982,0],["JBHT","J.B. Hunt","20304030","SP",226.03,-1.978,21.23,926244,0],["JBL","Jabil","45203020","SP",273.97,2.453,28.71,1790000,0],["JCI","Johnson Controls","20102010","SP",143.96,0.671,87.2,3375009,0],["JKHY","Jack Henry & Associates","40201060","SP",162.55,0.464,11.4,865011,0],["JNJ","Johnson & Johnson","35202010","SP",263.81,-1.42,635.07,5309180,0],["JPM","JPMorgan Chase","40101010","SP",331.58,-1.474,881.4,4781132,0],["KDP","Keurig Dr Pepper","30201030","SP,NDX",34.68,-1.449,47.19,13465522,0],["KEY","KeyCorp","40101015","SP",21.08,-0.613,22.5,18614730,0],["KEYS","Keysight Technologies","45203010","SP",314.77,1.043,53.59,1601935,0],["KHC","Kraft Heinz","30202030","SP",24.8,-1.156,29.41,9861869,0],["KIM","Kimco Realty","60107010","SP",23.62,0.127,15.84,5835967,0],["KKR","KKR & Co.","40203010","SP",91.34,-1.88,81.99,4350240,0],["KLAC","KLA Corporation","45301010","SP,NDX,SOX",145.61,-1.502,190.02,10438794,0],["KMB","Kimberly-Clark","30301010","SP",110.15,-1.928,36.63,5600271,0],["KMI","Kinder Morgan","10102040","SP",34.43,2.106,76.67,18956521,0],["KO","Coca-Cola Company (The)","30201030","SP",92.71,-2.759,398.89,18895123,0],["KR","Kroger","30101030","SP",66.77,-1.621,39.43,7899635,0],["KVUE","Kenvue","30302010","SP",19.57,-1.559,37.59,11094413,0],["KVYO","Klaviyo Inc","45103010","EMCLOUD",21.11,2.525,6.01,4500498,1],["L","Loews Corporation","40301030","SP",112.01,-1.469,22.9,511662,0],["LDOS","Leidos","20201070","SP,NQCYBR",136.08,1.002,17.08,1036993,0],["LEN","Lennar","25201030","SP",84.92,0.557,20.2,4932644,0],["LH","Labcorp","35102015","SP",328.95,-0.297,26.68,664233,0],["LHX","L3Harris","20101010","SP",253.97,-0.102,47.29,1317427,0],["LII","Lennox International","20102010","SP",376.01,-0.716,13.0,499017,0],["LIN","Linde plc","15101040","SP,NDX",508.83,-0.3,234.56,1666240,0],["LITE","Lumentum","45201020","SP,NDX",756.17,0.482,68.5,3935013,0],["LLY","Lilly (Eli)","35202010","SP",1273.46,-2.543,1198.78,2277571,0],["LMT","Lockheed Martin","20101010","SP",604.18,2.419,139.57,1817447,0],["LNT","Alliant Energy","55101010","SP",69.66,-0.91,18.06,2927316,0],["LOW","Lowe's","25504030","SP",198.68,-2.784,111.47,2846665,0],["LRCX","Lam Research","45301010","SP,NDX,SOX",230.1,-0.022,287.43,12738630,0],["LSCC","Lattice Semiconductor Corporation","45301020","SOX",96.19,-0.218,13.66,2110838,1],["LULU","Lululemon Athletica","25203010","SP",99.01,-4.853,10.45,3397345,0],["LUV","Southwest Airlines","20302010","SP",41.75,-0.666,20.44,8211149,0],["LVS","Las Vegas Sands","25301010","SP",35.68,-2.327,23.11,5774592,0],["LYB","LyondellBasell","15101050","SP",66.45,1.652,21.47,2792186,0],["LYV","Live Nation Entertainment","50202010","SP",173.44,-0.607,40.87,1648775,0],["MA","Mastercard","40201060","SP",623.6,-1.518,546.28,2698382,0],["MAA","Mid-America Apartment Communities","60106010","SP",119.78,-1.147,13.9,587806,0],["MAR","Marriott International","25301020","SP,NDX",390.71,-1.535,101.88,1356746,0],["MAS","Masco","20102010","SP",76.01,-2.614,14.99,2627897,0],["MCD","McDonald's","25301040","SP",248.46,-1.651,175.82,4162820,0],["MCHP","Microchip Technology","45301020","SP,NDX,SOX",74.05,-0.631,40.21,7184149,0],["MCK","McKesson","35102010","SP",1000.77,-1.143,116.68,628978,0],["MCO","Moody's Corporation","40203040","SP",483.45,-1.548,83.35,794227,0],["MDB","MongoDB Inc","45103020","EMCLOUD",371.09,2.443,29.89,1294216,1],["MDLZ","Mondelez International","30202030","SP,NDX",63.8,-2.132,81.43,7420354,0],["MDT","Medtronic","35101010","SP",95.41,-1.222,122.04,6009108,0],["MELI","MercadoLibre, Inc","25503030","NDX",1810.15,-0.811,91.77,383167,1],["MET","MetLife","40301020","SP",98.82,-4.586,62.8,5993600,0],["META","Meta Platforms","50203010","SP,NDX,FANG",642.62,-0.96,1642.69,14792236,0],["MGM","MGM Resorts","25301010","SP",28.06,-4.881,7.25,5708540,0],["MKC","McCormick & Company","30202030","SP",48.12,-1.211,12.95,3045063,0],["MLM","Martin Marietta Materials","15102010","SP",507.17,-2.028,36.02,942380,0],["MMM","3M","20105010","SP",173.46,-1.196,89.63,3890015,0],["MNDY","monday.com Ltd","45103010","EMCLOUD",106.53,-0.309,4.57,773635,1],["MNST","Monster Beverage","30201030","SP,NDX",46.19,-2.347,135.73,8365923,0],["MO","Altria","30203010","SP",74.31,-2.314,124.08,6393126,0],["MOS","Mosaic Company (The)","15101030","SP",17.84,3.301,5.67,16539535,0],["MPC","Marathon Petroleum","10102030","SP",457.22,-0.449,128.4,1461706,0],["MPWR","Monolithic Power Systems","45301020","SP,NDX,SOX",1140.12,-2.381,56.03,669686,0],["MRK","Merck & Co.","35202010","SP",145.27,-1.338,358.41,8381404,0],["MRNA","Moderna","35201010","SP,NDX",200.1,-1.249,79.89,21566983,0],["MRSH","Marsh McLennan","40301010","SP",197.48,-0.898,93.9,2242045,0],["MRVL","Marvell Technology","45301020","SP,NDX,SOX",228.51,2.255,200.38,13039876,0],["MS","Morgan Stanley","40203020","SP",179.49,-2.435,281.9,7628978,0],["MSCI","MSCI","40203040","SP",615.62,-0.745,44.02,557483,0],["MSFT","Microsoft","45103020","SP,NDX,NQCYBR,FANG",524.51,0.658,3895.24,13681266,0],["MSI","Motorola Solutions","45201020","SP",481.83,0.841,79.74,1418629,0],["MSTR","Strategy Inc Common Stock","45103010","NDX",146.01,0.144,61.61,18575927,1],["MTB","M&T Bank","40101015","SP",221.66,-0.525,32.01,1019297,0],["MTD","Mettler Toledo","35203010","SP",1670.29,-0.852,33.47,199563,0],["MTSI","MACOM Technology Solutions Holdings Inc","45301020","SOX",236.24,2.834,18.04,1135485,1],["MU","Micron Technology","45301020","SP,NDX,SOX,FANG",877.55,2.459,992.88,21250414,0],["NBIS","Nebius Group N.V","45102030","NDX",158.74,-0.27,43.15,13496896,1],["NCLH","Norwegian Cruise Line Holdings","25301020","SP",15.1,-2.831,6.93,22444501,0],["NCNO","nCino Inc","45103010","EMCLOUD",23.17,-0.728,2.45,1956431,1],["NDAQ","Nasdaq, Inc.","40203040","SP",102.56,-0.716,56.92,4205270,0],["NDSN","Nordson Corporation","20106020","SP",318.84,0.041,17.76,378409,0],["NEE","NextEra Energy","55103010","SP",82.1,0.244,172.19,11736120,0],["NEM","Newmont","15104030","SP",108.87,-4.592,113.14,7851522,0],["NET","Cloudflare Inc","45102030","NQCYBR,EMCLOUD,HACK",325.73,7.286,115.99,4177192,1],["NFLX","Netflix","50202010","SP,NDX,FANG",65.85,-1.79,270.4,37861750,0],["NI","NiSource","55103010","SP",43.28,-0.938,20.76,5029883,0],["NKE","Nike, Inc.","25203010","SP",37.3,-2.662,55.4,25893697,0],["NOC","Northrop Grumman","20101010","SP,HACK",551.44,-0.165,78.34,819051,0],["NOW","ServiceNow","45103020","SP,EMCLOUD",158.96,1.248,164.36,11100777,0],["NRG","NRG Energy","55105010","SP",92.31,-2.193,19.4,3487748,0],["NSC","Norfolk Southern","20304010","SP",329.99,-2.436,74.12,1099002,0],["NTAP","NetApp","45202030","SP,NQCYBR",215.48,1.398,42.32,1700235,0],["NTCT","NetScout Systems Inc","45201020","NQCYBR",39.67,3.55,2.88,411917,1],["NTNX","Nutanix Inc","45103020","EMCLOUD",70.58,1.481,19.25,1494179,1],["NTRS","Northern Trust","40203010","SP",167.92,1.266,30.72,1509034,0],["NTSK","Netskope Inc","45103020","NQCYBR,EMCLOUD,HACK",24.28,9.369,9.92,8809472,1],["NUE","Nucor","15104050","SP",258.11,0.019,58.56,1165771,0],["NVDA","Nvidia","45301020","SP,NDX,SOX,FANG",210.96,-0.589,5084.14,80191997,0],["NVR","NVR, Inc.","25201030","SP",5983.68,-2.078,15.95,68682,0],["NWS","News Corp (Class B)","50201040","SP",33.77,-0.53,18.25,967094,0],["NWSA","News Corp (Class A)","50201040","SP",30.735,-1.11,16.61,2903271,0],["NXPI","NXP Semiconductors","45301020","SP,NDX,SOX",234.92,-1.207,59.24,3271778,0],["O","Realty Income","60107010","SP",56.89,-0.298,53.83,6727690,0],["ODFL","Old Dominion","20304030","SP,NDX",182.7,-3.786,37.88,1993389,0],["OKE","Oneok","10102040","SP",95.83,2.055,60.41,2560743,0],["OKTA","Okta Inc","45103020","NQCYBR,EMCLOUD,HACK",213.05,5.821,37.25,3059001,1],["OMC","Omnicom Group","50201010","SP",82.68,0.145,22.68,5295420,0],["ON","ON Semiconductor","45301020","SP,SOX",72.25,-1.338,28.13,8160654,0],["ORCL","Oracle Corporation","45103010","SP",126.16,0.494,381.47,19223472,0],["ORLY","O'Reilly Automotive","25504050","SP,NDX",89.92,-2.261,72.74,5633235,0],["OSPN","OneSpan Inc","45103020","NQCYBR",20.19,5.102,0.74,1831210,1],["OTEX","Open Text Corporation","45103010","NQCYBR",27.95,0.036,7.0,1793862,1],["OTIS","Otis Worldwide","20106020","SP",75.15,-0.595,28.61,3935435,0],["OXY","Occidental Petroleum","10102020","SP",64.17,2.672,64.15,11663377,0],["P","Everpure","45202030","SP",123.33,1.757,41.1,2121641,0],["PANW","Palo Alto Networks","45103020","SP,NDX,NQCYBR,EMCLOUD,HACK",380.55,7.221,311.29,6591686,0],["PATH","UiPath Inc","45103010","EMCLOUD",14.13,1.363,7.36,27416744,1],["PAYC","Paycom Software Inc","20202010","EMCLOUD",274.59,0.726,12.38,524058,1],["PAYX","Paychex","20202010","SP,NDX",118.04,-0.648,42.02,2342287,0],["PCAR","Paccar","20106010","SP,NDX",106.96,-2.4,56.3,2052203,0],["PCG","PG&E Corporation","55103010","SP",12.63,-2.696,33.85,39085768,0],["PCOR","Procore Technologies Inc","45103010","EMCLOUD",63.0,1.14,9.57,3478670,1],["PCTY","Paylocity Holding Corporation","20202010","EMCLOUD",177.19,-0.27,9.24,456981,1],["PD","PagerDuty Inc","45103010","EMCLOUD",17.49,1.509,1.38,1609657,1],["PDD","PDD Holdings Inc","25503030","NDX",79.04,-0.164,112.51,2821669,1],["PEG","Public Service Enterprise Group","55101010","SP",72.02,-0.963,35.9,2449092,0],["PEP","PepsiCo","30201030","SP,NDX",135.77,-2.204,185.02,7476418,0],["PFE","Pfizer","35202010","SP",30.03,-1.282,171.16,29484166,0],["PFG","Principal Financial Group","40301020","SP",108.565,-1.403,23.24,1276719,0],["PG","Procter & Gamble","30302010","SP",161.02,-2.76,373.21,10331882,0],["PGR","Progressive Corporation","40301040","SP",228.07,-0.675,132.59,1768864,0],["PH","Parker Hannifin","20106020","SP",880.57,-1.415,111.05,884252,0],["PHM","PulteGroup","25201030","SP",121.19,1.431,22.31,3162856,0],["PKG","Packaging Corporation of America","15103020","SP",247.29,-0.655,22.03,712923,0],["PLD","Prologis","60102510","SP",126.45,-0.166,119.88,3004343,0],["PLTR","Palantir Technologies","45103010","SP,NDX,EMCLOUD,FANG",196.75,0.285,472.6,17668534,0],["PM","Philip Morris International","30203010","SP",199.47,-1.125,310.9,3576963,0],["PNC","PNC Financial Services","40101010","SP",224.46,-0.474,89.55,1431478,0],["PNR","Pentair","20106020","SP",55.3,-0.253,8.83,3035458,0],["PNW","Pinnacle West Capital","55103010","SP",105.88,-0.685,12.83,1665217,0],["PODD","Insulet Corporation","35101010","SP",149.01,0.601,10.33,803296,0],["PPG","PPG Industries","15101050","SP",110.61,-2.193,24.59,1285831,0],["PPL","PPL Corporation","55101010","SP",34.98,-1.047,26.32,6791004,0],["PRU","Prudential Financial","40301020","SP",114.99,-2.691,39.67,2028321,0],["PSA","Public Storage","60108020","SP",309.89,0.246,57.9,780084,0],["PSX","Phillips 66","10102030","SP",283.18,-0.509,112.99,2767492,0],["PTC","PTC Inc.","45103010","SP",193.8,-0.103,21.03,1579354,0],["PWR","Quanta Services","20103010","SP",546.43,-1.088,80.51,1621129,0],["PYPL","PayPal","40201060","SP,NDX",57.02,-0.895,48.78,8472010,0],["Q","Qnity Electronics","45301010","SP,SOX",109.83,0.965,22.98,1898424,0],["QCOM","Qualcomm","45301020","SP,NDX,SOX",175.91,1.782,184.75,7255818,0],["QLYS","Qualys Inc","45103020","NQCYBR,EMCLOUD,HACK",216.7,4.083,7.5,1227886,1],["QTWO","Q2 Holdings Inc","45103010","EMCLOUD",69.39,0.072,4.33,1136426,1],["RBRK","Rubrik Inc","45103020","NQCYBR,EMCLOUD,HACK",128.74,6.617,26.69,4036615,1],["RCL","Royal Caribbean Group","25301020","SP",276.48,-3.373,73.95,1679217,0],["RDDT","Reddit","50203010","SP",144.25,-4.0,27.75,4070816,0],["RDWR","Radware Ltd","45201020","NQCYBR,HACK",31.07,4.332,1.31,345001,1],["REG","Regency Centers","60107010","SP",73.98,-0.538,13.55,724758,0],["REGN","Regeneron Pharmaceuticals","35201010","SP,NDX",805.02,-1.718,82.88,527741,0],["RF","Regions Financial Corporation","40101015","SP",28.47,0.246,24.25,11118140,0],["RJF","Raymond James Financial","40203020","SP",157.7,-0.936,30.34,953137,0],["RKLB","Rocket Lab Corporation","20101010","NDX",52.6,2.694,33.02,13443949,1],["RL","Ralph Lauren Corporation","25203010","SP",377.4,-1.191,22.49,412511,0],["RMD","ResMed","35101010","SP",252.86,-0.079,35.56,1032416,0],["RNG","RingCentral Inc","45103010","EMCLOUD",83.39,4.999,6.96,4625604,1],["ROK","Rockwell Automation","20104010","SP",426.11,0.528,47.41,1158414,0],["ROL","Rollins, Inc.","20201050","SP",34.82,-1.388,16.65,9092625,0],["ROP","Roper Technologies","45203010","SP,NDX",438.14,0.438,43.33,1161482,0],["ROST","Ross Stores","25504010","SP,NDX",229.3,-3.114,73.25,1875220,0],["RPD","Rapid7 Inc","45103020","NQCYBR",14.91,1.222,1.0,3148415,1],["RSG","Republic Services","20201050","SP",240.45,-0.599,73.63,1881935,0],["RTX","RTX Corporation","20101010","SP",191.01,-1.9,257.76,5193830,0],["RVTY","Revvity","35101010","SP",158.77,0.896,17.72,1113483,0],["S","SentinelOne Inc","45103020","NQCYBR,EMCLOUD,HACK",24.0,6.667,8.35,18430467,1],["SAIC","Science Applications International Corporation","45102010","NQCYBR",145.73,1.529,6.11,398636,1],["SAIL","SailPoint Inc","45103020","EMCLOUD",21.79,8.624,12.44,6398896,1],["SBAC","SBA Communications","60108030","SP",184.75,3.565,19.6,2989160,0],["SBUX","Starbucks","25301040","SP,NDX",100.8,-1.089,114.91,5917994,0],["SCHW","Charles Schwab Corporation","40203020","SP",90.58,-0.941,156.64,6999366,0],["SHOP","Shopify Inc","45102030","NDX,EMCLOUD",168.68,-0.077,218.58,4104344,1],["SHW","Sherwin-Williams","15101050","SP",337.06,-2.48,81.82,1480826,0],["SITM","SiTime Corporation","45301020","SOX",460.22,-0.54,13.84,469613,1],["SJM","J.M. Smucker Company (The)","30202030","SP",129.98,-2.556,13.88,961865,0],["SKYD","Skydance","50202010","SP",7.77,-0.257,39.18,21120771,0],["SLB","Schlumberger","10101020","SP",53.06,7.084,78.75,19064329,0],["SMCI","Supermicro","45202030","SP",32.94,-2.313,21.64,29728054,0],["SNA","Snap-on","20106020","SP",357.02,0.157,18.42,930865,0],["SNDK","Sandisk","45202030","SP,NDX",1238.03,-1.816,179.92,7923993,0],["SNOW","Snowflake Inc","45102030","EMCLOUD",325.43,3.653,114.81,3136258,1],["SNPS","Synopsys","45103010","SP,NDX",430.14,1.813,82.43,1363587,0],["SO","Southern Company","55101010","SP",92.89,-0.991,106.86,5097738,0],["SOLV","Solventum","35103010","SP",85.41,-2.333,14.54,1655589,0],["SPCX","Space Exploration Technologies Corp","20101010","NDX",147.49,1.893,2003.07,110617720,1],["SPG","Simon Property Group","60107010","SP",211.63,-0.193,68.47,1213614,0],["SPGI","S&P Global","40203040","SP",450.31,-0.616,132.75,1910783,0],["SPSC","SPS Commerce Inc","45103010","EMCLOUD",92.63,0.75,3.33,441437,1],["SRE","Sempra","55103010","SP",84.06,-0.838,54.97,2774794,0],["STE","Steris","35101010","SP",232.15,-0.03,22.63,564795,0],["STLD","Steel Dynamics","15104050","SP",241.53,0.679,34.62,824246,0],["STT","State Street Corporation","40203010","SP",167.83,-0.006,46.1,1857623,0],["STX","Seagate Technology","45202030","SP,NDX",630.49,-1.814,144.2,5572361,0],["STZ","Constellation Brands","30201020","SP",138.68,-0.216,23.46,1959137,0],["SW","Smurfit Westrock","15103020","SP",41.85,-1.367,21.95,3446077,0],["SWK","Stanley Black & Decker","20106020","SP",99.24,0.273,14.99,1476674,0],["SWKS","Skyworks Solutions","45301020","SP",83.43,1.262,12.4,3512685,0],["SYF","Synchrony Financial","40202010","SP",73.64,-1.931,22.93,3788025,0],["SYK","Stryker Corporation","35101010","SP",307.15,0.023,117.81,1984914,0],["SYY","Sysco","30101020","SP",81.37,-3.096,40.03,2396101,0],["T","AT&T","50101020","SP",20.93,-7.96,140.99,99813722,0],["TDG","TransDigm Group","20101010","SP",1104.84,-3.232,61.07,437628,0],["TDY","Teledyne Technologies","45203010","SP",625.41,0.796,28.99,368897,0],["TEAM","Atlassian Corporation","45103010","EMCLOUD",227.61,1.994,57.39,2021695,1],["TECH","Bio-Techne","35203010","SP",72.55,-0.096,11.38,1898531,0],["TEL","TE Connectivity","45203020","SP",208.05,-0.178,60.23,1611686,0],["TENB","Tenable Holdings Inc","45103020","NQCYBR,EMCLOUD,HACK",44.59,6.167,4.91,5218723,1],["TER","Teradyne","45301010","SP,NDX,SOX",308.85,0.032,48.29,2669861,0],["TFC","Truist Financial","40101010","SP",48.44,0.041,59.18,6658026,0],["TGT","Target Corporation","30101040","SP",152.76,-3.384,69.4,3196736,0],["TJX","TJX Companies","25504010","SP",145.06,-1.574,159.56,4857856,0],["TKO","TKO Group Holdings","50202010","SP",173.07,-2.616,32.76,889094,0],["TMO","Thermo Fisher Scientific","35203010","SP",673.82,-0.402,249.14,2039975,0],["TMUS","T-Mobile US","50102010","SP,NDX",146.54,-7.715,157.19,8572321,0],["TOST","Toast Inc","45103010","EMCLOUD",32.71,-2.124,18.91,5282351,1],["TPL","Texas Pacific Land Corporation","10102020","SP",338.26,1.376,23.33,248062,0],["TPR","Tapestry, Inc.","25203010","SP",110.37,-3.116,22.05,2384427,0],["TRGP","Targa Resources","10102040","SP",302.37,4.431,64.84,1126066,0],["TRI","Thomson Reuters Corporation","20202020","NDX",123.17,-0.073,53.36,1466120,1],["TRMB","Trimble Inc.","45103010","SP",63.49,-0.812,14.8,1447738,0],["TROW","T. Rowe Price","40203010","SP",104.2,0.725,22.23,2094203,0],["TRV","Travelers Companies (The)","40301040","SP",398.28,-1.766,81.63,1293156,0],["TSCO","Tractor Supply","25504040","SP",33.42,-3.772,17.41,26780011,0],["TSEM","Tower Semiconductor Ltd","45301020","SOX",167.56,-0.089,18.94,1877724,1],["TSLA","Tesla, Inc.","25102010","SP,NDX",372.22,-0.63,1471.3,34763698,0],["TSM","Taiwan Semiconductor Manufacturing Company Ltd","45301020","SOX",418.51,1.494,2170.6,9494489,1],["TSN","Tyson Foods","30202030","SP",56.7,-0.648,19.95,2580675,0],["TT","Trane Technologies","20102010","SP",444.9,-0.869,97.89,1396312,0],["TTAN","ServiceTitan Inc","45103010","EMCLOUD",87.06,2.183,8.4,1698169,1],["TTWO","Take-Two Interactive","50202020","SP,NDX",203.69,-1.983,38.09,1564302,0],["TWLO","Twilio","45103020","SP,EMCLOUD",261.79,3.217,40.2,2081475,0],["TXN","Texas Instruments","45301020","SP,NDX,SOX",284.69,1.857,259.99,7515098,0],["TXT","Textron","20101010","SP",76.83,-1.55,13.21,1504905,0],["TYL","Tyler Technologies","45103010","SP",390.14,-0.589,15.98,558960,0],["UAL","United Airlines Holdings","20302010","SP",97.93,-3.99,31.82,4075815,0],["UBER","Uber","20304040","SP",66.7,-3.431,136.24,18778240,0],["UDR","UDR, Inc.","60106010","SP",35.84,-0.94,11.51,6640604,0],["UHS","Universal Health Services","35102020","SP",186.89,-0.659,11.01,450939,0],["ULTA","Ulta Beauty","25504040","SP",624.46,-1.661,26.7,543012,0],["UNH","UnitedHealth Group","35102030","SP",418.09,-1.621,375.28,3889874,0],["UNP","Union Pacific Corporation","20304010","SP",292.87,-1.751,174.04,3456147,0],["UPS","United Parcel Service","20301010","SP",101.06,-0.453,85.98,3603377,0],["URI","United Rentals","20107010","SP",1098.88,-1.093,68.04,553389,0],["USB","U.S. Bancorp","40101010","SP",59.58,-0.733,92.83,5627040,0],["V","Visa Inc.","40201060","SP",407.92,-1.549,728.85,5072241,0],["VEEV","Veeva Systems","35103010","SP,EMCLOUD",323.04,0.152,52.3,1371325,0],["VICI","Vici Properties","60103010","SP",23.76,-1.082,26.16,8692479,0],["VLO","Valero Energy","10102030","SP",419.28,-1.642,120.72,2405152,0],["VLTO","Veralto","20201050","SP",104.33,-0.543,25.43,1129379,0],["VMC","Vulcan Materials Company","15102010","SP",261.69,-2.616,33.91,1060202,0],["VMRK","Vivmark Residential","60106010","SP",63.03,-0.849,49.64,4301717,0],["VRNS","Varonis Systems Inc","45103020","NQCYBR,HACK",48.88,-0.02,5.61,3023980,1],["VRSK","Verisk Analytics","20202020","SP",195.88,-3.664,25.49,2019740,0],["VRSN","Verisign","45102030","SP",300.32,-1.402,26.94,1483714,0],["VRT","Vertiv","20104010","SP",194.32,-0.649,74.81,7398352,0],["VRTX","Vertex Pharmaceuticals","35201010","SP,NDX",523.93,-2.1,132.8,832629,0],["VST","Vistra Corp.","55101010","SP",140.16,-0.476,47.04,6740496,0],["VTR","Ventas","60105010","SP",86.8,-0.218,44.52,2455740,0],["VTRS","Viatris","35202010","SP",18.0,-2.597,20.67,7218132,0],["VYLR","Vylor","30202010","SP",74.59,4.879,49.77,3151117,0],["VZ","Verizon","50101020","SP",44.66,-1.195,185.55,51121244,0],["WAB","Wabtec","20106010","SP",272.35,-1.49,45.7,1546892,0],["WAT","Waters Corporation","35203010","SP",453.67,-0.421,44.57,907797,0],["WAY","Waystar Holding Corp","35103010","EMCLOUD",28.85,-0.449,5.53,1559468,1],["WDAY","Workday, Inc.","45103010","SP,NDX,EMCLOUD",209.99,0.0,50.61,1956972,0],["WDC","Western Digital","45202030","SP,NDX",343.67,-2.97,128.38,13953750,0],["WEC","WEC Energy Group","55101010","SP",111.09,-0.945,36.2,2058970,0],["WELL","Welltower","60105010","SP",237.32,-0.034,171.05,2108749,0],["WFC","Wells Fargo","40101010","SP",82.39,-0.747,249.15,8766413,0],["WIX","Wix.com Ltd","45103010","EMCLOUD",81.94,-0.739,3.43,861015,1],["WK","Workiva Inc","45103010","EMCLOUD",85.8,0.894,4.67,808010,1],["WM","Waste Management","20201050","SP",239.38,0.117,95.68,2768042,0],["WMB","Williams Companies","10102040","SP",71.7,1.515,87.7,5912417,0],["WMT","Walmart","30101040","SP,NDX",119.89,-1.016,951.18,18598933,0],["WRB","W. R. Berkley Corporation","40301040","SP",73.33,-2.938,27.22,2978895,0],["WSM","Williams-Sonoma, Inc.","25504060","SP",252.47,-3.194,29.74,1106720,0],["WST","West Pharmaceutical Services","35101020","SP",392.15,-0.477,27.6,718058,0],["WTW","Willis Towers Watson","40301010","SP",325.01,-2.158,30.18,542372,0],["WY","Weyerhaeuser","60108040","SP",19.49,-1.665,14.05,6047916,0],["WYNN","Wynn Resorts","25301010","SP",72.73,-3.194,7.49,2267482,0],["XEL","Xcel Energy","55103010","SP,NDX",78.05,-1.077,48.75,3993616,0],["XOM","ExxonMobil","10102010","SP",183.21,2.794,753.34,11522182,0],["XYL","Xylem Inc.","20106020","SP",108.74,-0.476,25.39,2165472,0],["XYZ","Block, Inc.","40201060","SP",76.46,-3.24,45.94,5159412,0],["YUM","Yum! Brands","25301040","SP",149.7,-3.075,40.85,2555287,0],["ZBH","Zimmer Biomet","35101010","SP",98.56,-0.253,18.8,2016773,0],["ZBRA","Zebra Technologies","45203010","SP",386.45,0.596,18.28,451296,0],["ZD","Ziff Davis Inc","50203010","NQCYBR",57.89,-0.104,1.98,332145,1],["ZETA","Zeta Global Holdings Corp","45103010","EMCLOUD",33.98,1.372,8.53,3120729,1],["ZS","Zscaler Inc","45103020","NQCYBR,EMCLOUD,HACK",255.15,7.314,41.6,3991937,1],["ZTS","Zoetis","35202010","SP",81.03,-1.183,33.48,2860239,0]]};
+</script>
+<script>
+// Build the master list: sector (2 digits) → industry (6) → sub-industry (8) → stocks.
+// Other share classes of the same company fold into one (their market caps are the company's).
+const FOLD = { GOOG: "GOOGL", FOX: "FOXA", NWS: "NWSA" };
+const OWNED = new Set(["AAPL","MSFT","NVDA","GOOGL","AMZN","COST","V"]);
+const WATCHED = new Set(["AMD","PLTR","TSLA","LLY","ANET"]);
+const PERIODS = ["1D","1W","1M","3M","YTD","1Y"];
+const SCALE = { "1D":3, "1W":6, "1M":10, "3M":18, "YTD":30, "1Y":40 };
+// Each list, where its members come from, and an ETF that tracks it.
+const LISTS = {
+  SP:      { name: "S&P 500", short: "S&P", group: "Market", etf: "SPY", source: "Wikipedia's S&P 500 list" },
+  NDX:     { name: "Nasdaq-100", short: "NDX", group: "Market", etf: "QQQ", source: "Nasdaq's Nasdaq-100 list" },
+  SOX:     { name: "Semiconductors", short: "SOX", group: "Tech", index: "PHLX Semiconductor", etf: "SOXX", source: "Nasdaq's index data" },
+  NQCYBR:  { name: "Cybersecurity", short: "CIBR", group: "Tech", index: "Nasdaq CTA Cybersecurity", etf: "CIBR", source: "Nasdaq's index data" },
+  HACK:    { name: "Cyber Security (ISE)", short: "HACK", group: "Tech", index: "ISE Cyber Security", etf: "HACK", source: "Amplify's daily holdings" },
+  EMCLOUD: { name: "Cloud Software", short: "Cloud", group: "Tech", index: "BVP Nasdaq Emerging Cloud", etf: "WCLD", source: "Nasdaq's index data" },
+  FANG:    { name: "FANG+", short: "FANG+", group: "Tech", index: "NYSE FANG+", etf: "FNGS", source: "the FANG+ ETN's holdings" },
+};
+const SMALL = 80;   // lists this size open straight to their stocks
+
+function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967295; }
+const noise = k => hash(k) * 2 - 1;
+const G = DATA.gics, stocks = {};
+for (const [sym, name, code, lists, price, chg, cap, vol, ai] of DATA.stocks) {
+  if (FOLD[sym]) continue;
+  const change = { "1D": chg };
+  for (const p of PERIODS.slice(1)) { const k = SCALE[p]; change[p] = (noise(code.slice(0, 2) + p) * .4 + noise(code.slice(0, 6) + p) * .35 + noise(sym + p) * .6) * k * .9 + (p === "YTD" || p === "1Y" ? k * .25 : 0); }
+  const also = Object.keys(FOLD).find(k => FOLD[k] === sym);
+  stocks[sym] = { sym, name, code, lists: lists.split(","), price, cap, vol, ai: !!ai, change, also,
+    sector: G[code.slice(0, 2)], industry: G[code.slice(0, 6)], sub: G[code] };
+}
+
+const state = { list: "SP", period: "1D", size: "cap", show: "all", view: { kind: "all" }, history: [], sort: { key: "cap", dir: -1 }, query: "" };
+
+// The tree for the chosen index and filter, rebuilt on each render (it's ~500 rows).
+function buildTree() {
+  let list = Object.values(stocks).filter(s => s.lists.includes(state.list));
+  if (state.show === "top") {
+    const bySub = {};
+    for (const s of list) (bySub[s.code] ||= []).push(s);
+    list = Object.values(bySub).flatMap(a => a.sort((x, y) => y.cap - x.cap).slice(0, 5));
+  }
+  const sectors = {};
+  for (const s of list) {
+    const sec = sectors[s.code.slice(0, 2)] ||= { code: s.code.slice(0, 2), name: s.sector, industries: {} };
+    const ind = sec.industries[s.code.slice(0, 6)] ||= { code: s.code.slice(0, 6), name: s.industry, sector: sec, subs: {} };
+    const sub = ind.subs[s.code] ||= { code: s.code, name: s.sub, industry: ind, syms: [] };
+    sub.syms.push(s.sym);
+  }
+  for (const sec of Object.values(sectors)) {
+    sec.industries = Object.values(sec.industries);
+    for (const ind of sec.industries) { ind.subs = Object.values(ind.subs); ind.syms = ind.subs.flatMap(x => x.syms); }
+    sec.syms = sec.industries.flatMap(i => i.syms);
+  }
+  return Object.values(sectors).sort((a, b) => a.code.localeCompare(b.code));
+}
+let tree = [];
+const findSector = c => tree.find(s => s.code === c);
+const findIndustry = c => findSector(c.slice(0, 2))?.industries.find(i => i.code === c);
+const findSub = c => findIndustry(c.slice(0, 6))?.subs.find(s => s.code === c);
+
+function weighted(syms, p) { let w = 0, t = 0; for (const s of syms) { t += stocks[s].change[p] * stocks[s].cap; w += stocks[s].cap; } return w ? t / w : 0; }
+const capOf = syms => syms.reduce((a, s) => a + stocks[s].cap, 0);
+const sizeOf = syms => state.size === "cap" ? capOf(syms) : syms.length;
+
+function isDark() { const r = document.documentElement; return r.dataset.theme === "dark" || (!r.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches); }
+function heat(pct) {
+  const t = Math.max(-1, Math.min(1, pct / SCALE[state.period])), dark = isDark();
+  const flat = dark ? [74,74,71] : [138,138,134], g = dark ? [22,140,70] : [22,150,74], r = dark ? [200,52,52] : [214,60,60];
+  const to = t >= 0 ? g : r, a = Math.pow(Math.abs(t), .75);
+  return `rgb(${flat.map((c, k) => Math.round(c + (to[k] - c) * a)).join(",")})`;
+}
+const fmtPct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "%";
+const fmtCap = b => b >= 1000 ? "$" + (b / 1000).toFixed(2) + "T" : "$" + b.toFixed(b < 10 ? 1 : 0) + "B";
+const fmtVol = v => v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : (v / 1e3).toFixed(0) + "K";
+const pctColor = v => v > .005 ? "var(--green)" : v < -.005 ? "var(--red)" : "var(--text3)";
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+// Squarified treemap.
+function squarify(items, rect) {
+  const total = items.reduce((a, i) => a + i.v, 0); if (!total || rect.w <= 0 || rect.h <= 0) return [];
+  const scale = rect.w * rect.h / total;
+  const nodes = items.slice().sort((a, b) => b.v - a.v).map(i => ({ ...i, a: i.v * scale }));
+  const out = []; let r = { ...rect }, row = [];
+  const worst = (row, s) => { const sum = row.reduce((a, n) => a + n.a, 0), max = Math.max(...row.map(n => n.a)), min = Math.min(...row.map(n => n.a)); return Math.max(s * s * max / (sum * sum), sum * sum / (s * s * min)); };
+  const place = row => {
+    const sum = row.reduce((a, n) => a + n.a, 0);
+    if (r.w >= r.h) { const cw = sum / r.h; let y = r.y; for (const n of row) { const h = n.a / cw; out.push({ ...n, x: r.x, y, w: cw, h }); y += h; } r = { x: r.x + cw, y: r.y, w: r.w - cw, h: r.h }; }
+    else { const rh = sum / r.w; let x = r.x; for (const n of row) { const w = n.a / rh; out.push({ ...n, x, y: r.y, w, h: rh }); x += w; } r = { x: r.x, y: r.y + rh, w: r.w, h: r.h - rh }; }
+  };
+  while (nodes.length) {
+    const s = Math.min(r.w, r.h);
+    if (!row.length || worst(row.concat(nodes[0]), s) <= worst(row, s)) row.push(nodes.shift());
+    else { place(row); row = []; }
+  }
+  if (row.length) place(row);
+  return out;
+}
+function tileHTML(n) {
+  const fs = Math.max(10, Math.min(20, Math.sqrt(n.w * n.h) / 7)), label = esc(n.label);
+  const big = n.w > n.label.length * fs * .62 && n.h > 44, mid = n.w > n.label.length * 7 && n.h > 18;
+  const text = big ? `<b style="font-size:${fs}px">${label}</b><span style="font-size:${Math.max(10, fs * .7)}px">${fmtPct(n.pct)}</span>` : mid ? `<b style="font-size:11px">${label}</b>` : "";
+  return `<div class="tile" title="${label} ${fmtPct(n.pct)}" style="left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;background:${heat(n.pct)}" onclick="${n.onclick}"><div class="t">${text}</div></div>`;
+}
+// Groups each hold tiles; a group too small for a header shows as one tile.
+function drawMap(el, groups) {
+  const W = el.clientWidth, H = el.clientHeight, GH = 18;
+  let html = "";
+  for (const g of squarify(groups.map(g => ({ ...g, v: g.size })), { x: 0, y: 0, w: W, h: H })) {
+    if (g.w < 60 || g.h < 44) { html += tileHTML(g); continue; }
+    html += `<div class="group-tile" style="left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px"><div class="gh" onclick="${g.onclick}">${esc(g.label)}<span style="color:${pctColor(g.pct)}">${fmtPct(g.pct)}</span></div></div>`;
+    for (const t of squarify(g.children.map(c => ({ ...c, v: c.size })), { x: g.x + 1, y: g.y + GH, w: g.w - 2, h: g.h - GH - 1 })) html += tileHTML(t);
+  }
+  el.innerHTML = html;
+}
+
+function go(view) { state.history.push(state.view); state.view = view; render(); document.querySelector(".detail").scrollTop = 0; }
+function back() { state.view = state.history.pop() || { kind: "all" }; render(); }
+const goSector = c => `go({kind:'sector',code:'${c}'})`;
+const goInd = c => `go({kind:'industry',code:'${c}'})`;
+const goSub = c => `go({kind:'sub',code:'${c}'})`;
+const goStock = s => `go({kind:'stock',sym:'${s}'})`;
+
+// Middle column
+function renderList() {
+  const v = state.view, p = state.period, qy = state.query.trim().toLowerCase();
+  const code = v.kind === "stock" ? stocks[v.sym].code : v.code || "";
+  const all = tree.flatMap(s => s.syms);
+  let html = `<div class="irow all ${v.kind === "all" ? "on" : ""}" onclick="go({kind:'all'})"><span class="chip" style="background:var(--accent)"></span><span class="name">All of ${state.list === "SP" ? "the " : ""}${LISTS[state.list].name}</span><span class="pct" style="color:${pctColor(weighted(all, p))}">${fmtPct(weighted(all, p))}</span></div>`;
+  if (qy) {
+    const hits = Object.values(stocks).filter(s => s.lists.includes(state.list) && (s.sym.toLowerCase().startsWith(qy) || s.name.toLowerCase().includes(qy))).slice(0, 8);
+    if (hits.length) html += `<div class="lhead">Stocks</div>` + hits.map(s => `<div class="irow" onclick="${goStock(s.sym)}"><span class="name"><b>${s.sym}</b> <span class="muted">${esc(s.name)}</span></span><span class="pct" style="color:${pctColor(s.change[p])}">${fmtPct(s.change[p])}</span></div>`).join("");
+    html += `<div class="lhead">Industries</div>`;
+  }
+  const row = (cls, on, onclick, chip, name, count, pct) =>
+    `<div class="irow ${cls} ${on ? "on" : ""}" onclick="${onclick}">${chip ? `<span class="chip" style="background:${heat(pct)}"></span>` : ""}<span class="name">${esc(name)}</span><span class="count">${count}</span><span class="pct" style="color:${pctColor(pct)}">${fmtPct(pct)}</span></div>`;
+  const match = n => n.toLowerCase().includes(qy);
+  for (const s of tree) {
+    const inds = qy ? s.industries.filter(i => match(s.name) || match(i.name) || i.subs.some(x => match(x.name))) : s.industries;
+    if (!inds.length) continue;
+    html += row("", code === s.code, goSector(s.code), true, s.name, s.syms.length, weighted(s.syms, p));
+    if (!qy && !code.startsWith(s.code)) continue;
+    for (const i of inds) {
+      html += row("sub", code === i.code, goInd(i.code), false, i.name, i.syms.length, weighted(i.syms, p));
+      if (!qy && !code.startsWith(i.code)) continue;
+      for (const x of i.subs) if (!qy || match(x.name) || match(i.name) || match(s.name))
+        html += row("subsub", code === x.code, goSub(x.code), false, x.name, x.syms.length, weighted(x.syms, p));
+    }
+  }
+  document.getElementById("ilist").innerHTML = html;
+}
+
+const seg = (opts, cur, set) => `<div class="seg">${opts.map(([v, l]) => `<button class="${v === cur ? "on" : ""}" onclick="${set}='${v}';render()">${l}</button>`).join("")}</div>`;
+function controls() {
+  return `<div class="controls">${seg(PERIODS.map(x => [x, x]), state.period, "state.period")}
+    <label>Size</label>${seg([["cap", "Market cap"], ["equal", "Equal"]], state.size, "state.size")}
+    <label>Show</label>${seg([["all", "All"], ["top", "Top 5"]], state.show, "state.show")}</div>`;
+}
+function legend() {
+  const k = SCALE[state.period];
+  return `<div class="legend"><span>−${k}%</span><div class="bar">${[-1, -.66, -.33, 0, .33, .66, 1].map(t => `<i style="background:${heat(t * k)}"></i>`).join("")}</div><span>+${k}%</span>${state.period === "1D" ? "" : '<span class="sample">Periods other than 1D are sample numbers in this prototype</span>'}<span class="hint">Click a tile to drill in</span></div>`;
+}
+function summary(syms) {
+  const p = state.period, sorted = syms.slice().sort((a, b) => stocks[b].change[p] - stocks[a].change[p]);
+  const up = syms.filter(s => stocks[s].change[p] > 0).length, best = stocks[sorted[0]], worst = stocks[sorted.at(-1)];
+  return `<div class="summary"><span><b>${up}</b> of ${syms.length} up</span><span>Best <b style="color:${pctColor(best.change[p])}">${best.sym} ${fmtPct(best.change[p])}</b></span><span>Worst <b style="color:${pctColor(worst.change[p])}">${worst.sym} ${fmtPct(worst.change[p])}</b></span><span>Combined value <b>${fmtCap(capOf(syms))}</b></span></div>`;
+}
+function title(name, syms, crumbs) {
+  const pct = weighted(syms, state.period);
+  return `${crumbs ? `<div><span class="backbar" onclick="back()">‹ Back</span></div><div class="crumbs">${crumbs.map(([l, on]) => on ? `<a onclick="${on}">${esc(l)}</a>` : esc(l)).join(" › ")}</div>` : ""}
+    <div class="titlerow"><h1>${esc(name)}</h1><span class="big" style="color:${pctColor(pct)}">${fmtPct(pct)}</span><span class="spacer"></span>${controls()}</div>${summary(syms)}`;
+}
+const crumbsFor = code => {
+  const out = [["All", "go({kind:'all'})"]];
+  if (code.length > 2) out.push([G[code.slice(0, 2)], goSector(code.slice(0, 2))]);
+  if (code.length > 6) out.push([G[code.slice(0, 6)], goInd(code.slice(0, 6))]);
+  return out;
+};
+
+function sortBy(k) { state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "sym" ? 1 : -1 }; render(); }
+function stockTable(syms) {
+  const p = state.period, { key, dir } = state.sort;
+  const val = { sym: s => s.sym, price: s => s.price, chg: s => s.change[p], cap: s => s.cap, vol: s => s.vol };
+  const rows = syms.map(s => stocks[s]).sort((a, b) => { const x = val[key](a), y = val[key](b); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  const th = (k, label, cls = "") => `<th class="${cls} ${key === k ? "sorted" : ""}" onclick="sortBy('${k}')">${label}${key === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`;
+  return `<table><thead><tr>${th("sym", "Stock")}<th class="hide-narrow">Lists</th>${th("price", "Price")}${th("chg", p + " change")}${th("cap", "Market cap", "hide-narrow")}${th("vol", "Volume", "hide-narrow")}</tr></thead><tbody>` +
+    rows.map(s => `<tr onclick="${goStock(s.sym)}">
+      <td><span class="sym">${s.sym}</span><span class="cname">${esc(s.name)}</span>${s.also ? `<span class="cname">· also ${s.also}</span>` : ""}${OWNED.has(s.sym) ? '<span class="badge own">OWN</span>' : ""}${WATCHED.has(s.sym) ? '<span class="badge watch">WATCH</span>' : ""}${s.ai ? '<span class="badge ai" title="Not in the S&P 500, so it has no published classification. Your AI model placed it; you can move it.">AI</span>' : ""}</td>
+      <td class="hide-narrow muted">${s.lists.map(l => LISTS[l].short).join(" · ")}</td>
+      <td>$${s.price.toFixed(2)}</td>
+      <td><span class="pill" style="background:${heat(s.change[p])}">${fmtPct(s.change[p])}</span></td>
+      <td class="hide-narrow">${fmtCap(s.cap)}</td>
+      <td class="hide-narrow muted">${fmtVol(s.vol)}</td></tr>`).join("") + "</tbody></table>";
+}
+function groupTable(groups, nameLabel, open) {
+  const p = state.period, rows = groups.map(g => ({ g, pct: weighted(g.syms, p) })).sort((a, b) => b.pct - a.pct);
+  return `<table><thead><tr><th>${nameLabel}</th><th>Stocks</th><th>${p} change</th><th class="hide-narrow">Market cap</th><th class="hide-narrow">Biggest</th><th class="hide-narrow">Best</th></tr></thead><tbody>` +
+    rows.map(({ g, pct }) => {
+      const big = g.syms.slice().sort((a, b) => stocks[b].cap - stocks[a].cap)[0], best = g.syms.slice().sort((a, b) => stocks[b].change[p] - stocks[a].change[p])[0];
+      return `<tr onclick="${open(g.code)}"><td class="sym">${esc(g.name)}${g.sector && open === goInd ? `<span class="cname">${esc(g.sector.name)}</span>` : ""}</td><td>${g.syms.length}</td><td><span class="pill" style="background:${heat(pct)}">${fmtPct(pct)}</span></td><td class="hide-narrow">${fmtCap(capOf(g.syms))}</td><td class="hide-narrow">${big}</td><td class="hide-narrow">${best} <span style="color:${pctColor(stocks[best].change[p])}">${fmtPct(stocks[best].change[p])}</span></td></tr>`;
+    }).join("") + "</tbody></table>";
+}
+const stockTiles = syms => syms.map(s => ({ label: s, pct: stocks[s].change[state.period], size: state.size === "cap" ? stocks[s].cap : 1, onclick: goStock(s) }));
+
+function renderDetail() {
+  const v = state.view, p = state.period, el = document.getElementById("detail");
+  let groups = null;
+  if (v.kind === "all") {
+    const all = tree.flatMap(s => s.syms);
+    const L = LISTS[state.list], small = all.length <= SMALL, subs = tree.flatMap(s => s.industries.flatMap(i => i.subs));
+    el.innerHTML = title(L.name, all) + (L.index ? `<div class="about">The ${L.index} index · tracked by <b>${L.etf}</b></div>` : "") +
+      `<div class="map" id="map"></div>${legend()}` +
+      (small ? `<h3>Stocks</h3>${stockTable(all)}<h3>Sub-industries</h3>${groupTable(subs, "Sub-industry", goSub)}` : `<h3>Industries by ${p} change</h3>${groupTable(tree.flatMap(s => s.industries), "Industry", goInd)}`);
+    groups = small
+      ? subs.map(x => ({ label: x.name, pct: weighted(x.syms, p), size: sizeOf(x.syms), onclick: goSub(x.code), children: stockTiles(x.syms) }))
+      : tree.map(s => ({ label: s.name, pct: weighted(s.syms, p), size: sizeOf(s.syms), onclick: goSector(s.code),
+          children: s.industries.map(i => ({ label: i.name, pct: weighted(i.syms, p), size: sizeOf(i.syms), onclick: goInd(i.code) })) }));
+  } else if (v.kind === "sector") {
+    const s = findSector(v.code); if (!s) return go({ kind: "all" });
+    el.innerHTML = title(s.name, s.syms, crumbsFor(s.code)) + `<div class="map" id="map"></div>${legend()}<h3>Industries</h3>${groupTable(s.industries, "Industry", goInd)}`;
+    groups = s.industries.map(i => ({ label: i.name, pct: weighted(i.syms, p), size: sizeOf(i.syms), onclick: goInd(i.code), children: stockTiles(i.syms) }));
+  } else if (v.kind === "industry") {
+    const i = findIndustry(v.code); if (!i) return go({ kind: "all" });
+    el.innerHTML = title(i.name, i.syms, crumbsFor(i.code)) + `<div class="map" id="map"></div>${legend()}` +
+      i.subs.map(x => `<h3><a onclick="${goSub(x.code)}">${esc(x.name)}</a><span class="pct" style="color:${pctColor(weighted(x.syms, p))}">${fmtPct(weighted(x.syms, p))}</span><span class="more" onclick="${goSub(x.code)}">Open ›</span></h3>${stockTable(x.syms)}`).join("");
+    groups = i.subs.map(x => ({ label: x.name, pct: weighted(x.syms, p), size: sizeOf(x.syms), onclick: goSub(x.code), children: stockTiles(x.syms) }));
+  } else if (v.kind === "sub") {
+    const x = findSub(v.code); if (!x) return go({ kind: "all" });
+    el.innerHTML = title(x.name, x.syms, crumbsFor(x.code)) + `<div class="map small" id="map"></div>${legend()}<h3>Stocks</h3>${stockTable(x.syms)}`;
+    groups = [{ label: x.name, pct: weighted(x.syms, p), size: 1, onclick: "", children: stockTiles(x.syms) }];
+  } else {
+    const s = stocks[v.sym];
+    el.innerHTML = `<div class="tickerpage"><div><span class="backbar" onclick="back()">‹ Back</span></div><div class="crumbs">${[...crumbsFor(s.code), [s.sub, goSub(s.code)]].map(([l, on]) => `<a onclick="${on}">${esc(l)}</a>`).join(" › ")}</div>
+      <div class="titlerow"><h1>${esc(s.name)}</h1><span class="muted">${s.sym}</span></div>
+      <div class="about">In ${s.lists.map(l => `<a onclick="pickList('${l}')">${LISTS[l].name}</a>`).join(", ")}</div>
+      <div class="titlerow"><span class="big">$${s.price.toFixed(2)}</span><span style="color:${pctColor(s.change[p])}">${fmtPct(s.change[p])} ${p}</span></div>
+      <div class="chartbox muted">Price chart</div>
+      <div class="note">This is the existing ticker page (<code>TickerDetail</code>): chart, company info, headlines, your positions from Finance and Trading alerts. Explore adds one line to it, the stock's place in the list (${esc(s.sector)} › ${esc(s.industry)} › ${esc(s.sub)}), and its Back bar returns here.</div></div>`;
+  }
+  if (groups) drawMap(document.getElementById("map"), groups);
+}
+
+// Tech lists hold a few giants (Microsoft is in Cybersecurity), so they start at equal sizes.
+function pickList(k) { state.list = k; state.size = LISTS[k].group === "Market" ? "cap" : "equal"; state.history = []; state.view = { kind: "all" }; render(); }
+function renderHeader() {
+  const n = Object.values(stocks).filter(s => s.lists.includes(state.list)).length, groups = {};
+  for (const [k, l] of Object.entries(LISTS)) (groups[l.group] ||= []).push(`<option value="${k}" ${k === state.list ? "selected" : ""}>${l.name}${l.group === "Tech" ? " · " + l.etf : ""}</option>`);
+  document.getElementById("indexseg").innerHTML = `<select class="picker" onchange="pickList(this.value)">${Object.entries(groups).map(([g, o]) => `<optgroup label="${g}">${o.join("")}</optgroup>`).join("")}</select>`;
+  document.getElementById("status").textContent = `${n} companies · from ${LISTS[state.list].source}, checked ${DATA.asOf}`;
+}
+function render() { tree = buildTree(); renderHeader(); renderList(); renderDetail(); }
+document.getElementById("search").addEventListener("input", e => { state.query = e.target.value; renderList(); });
+document.getElementById("theme").onclick = () => { document.documentElement.dataset.theme = isDark() ? "light" : "dark"; render(); };
+document.addEventListener("keydown", e => { if (e.metaKey && e.key === "[") { e.preventDefault(); back(); } });
+addEventListener("resize", () => renderDetail());
+render();
+</script>
+</body>
+</html>

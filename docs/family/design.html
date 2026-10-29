@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Family Controls Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: a design-review document. Sticky contents rail on the left, one 70ch reading column,
+   wide tables and diagrams allowed to scroll inside their own frames. Notebook's serif for headings. */
+:root {
+  --bg: #f6f6f4;
+  --paper: #ffffff;
+  --ink: #1b1b1d;
+  --ink2: #55555b;
+  --ink3: #8d8d94;
+  --line: #e2e2e0;
+  --accent: #0a72f0;
+  --accent-soft: rgba(10,114,240,.10);
+  --ok: #1f9d47;
+  --warn: #b86e00;
+  --stop: #cf3a30;
+  --care: #6f50e8;
+  --code-bg: #f1f1ef;
+  --font-head: Charter, "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131315; --paper: #1c1c1f; --ink: #ececee; --ink2: #ababb2; --ink3: #75757d; --line: #303034;
+  --accent: #4a9bff; --accent-soft: rgba(74,155,255,.14); --ok: #4cc873; --warn: #f0a83a; --stop: #ff6d62; --care: #a68cff; --code-bg: #232327; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 56px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0,1fr); gap: 0; } .toc { display: none; } }
+.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; }
+.toc b { display: block; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; counter-reset: s; }
+.toc li { counter-increment: s; }
+.toc a { color: var(--ink2); text-decoration: none; }
+.toc a::before { content: counter(s) ". "; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.toc a:hover { color: var(--accent); }
+main { max-width: 72ch; min-width: 0; counter-reset: h; }
+
+header.doc { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); margin: 0 0 8px; }
+h1 { font-family: var(--font-head); font-weight: 400; font-size: clamp(30px, 5vw, 40px); line-height: 1.12; margin: 0 0 12px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { font-size: 17px; color: var(--ink2); margin: 0 0 18px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink2); }
+.meta span b { color: var(--ink); font-weight: 600; }
+.proto { margin-top: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.proto p { margin: 0; flex: 1; min-width: 200px; font-size: 14px; color: var(--ink2); }
+.proto a { font-weight: 600; text-decoration: none; background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 7px; font-size: 14px; white-space: nowrap; }
+
+h2 { font-family: var(--font-head); font-weight: 400; font-size: 26px; line-height: 1.2; margin: 56px 0 12px; counter-increment: h; text-wrap: balance; scroll-margin-top: 20px; }
+h2::before { content: counter(h); font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--accent); display: block; margin-bottom: 4px; letter-spacing: .04em; }
+h3 { font-size: 15.5px; font-weight: 650; margin: 28px 0 6px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 5px; }
+li::marker { color: var(--ink3); }
+strong { font-weight: 650; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 0 0 16px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.k { color: var(--accent); } .c { color: var(--ink3); }
+
+.tbl { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); font-weight: 600; background: color-mix(in srgb, var(--bg) 60%, var(--paper)); white-space: nowrap; }
+td.n { white-space: nowrap; }
+.s { font-size: 11.5px; font-weight: 700; border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+.s-a { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.s-c { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.s-b { color: var(--stop); background: color-mix(in srgb, var(--stop) 12%, transparent); }
+.s-h { color: var(--care); background: color-mix(in srgb, var(--care) 13%, transparent); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 16px; font-size: 14.5px; }
+.callout p:last-child { margin: 0; }
+
+/* diagrams */
+.diagram { overflow-x: auto; margin: 6px 0 20px; }
+.flow { display: flex; align-items: stretch; gap: 0; min-width: 640px; }
+.node { flex: 1; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.node b { font-size: 13.5px; }
+.node span { color: var(--ink2); }
+.node.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.arrow { flex: 0 0 28px; display: grid; place-items: center; color: var(--ink3); font-size: 18px; }
+.branch { display: flex; gap: 8px; margin-top: 8px; min-width: 640px; font-size: 12.5px; color: var(--ink2); }
+.branch div { flex: 1; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 12px; }
+.branch b { color: var(--ink); }
+
+.arch { display: grid; grid-template-columns: 1fr 60px 1fr 60px 1fr; align-items: center; min-width: 680px; }
+.zone { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.zone > b { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); }
+.box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.box small { display: block; color: var(--ink2); }
+.wire { text-align: center; font-size: 11.5px; color: var(--ink2); line-height: 1.3; }
+.wire i { display: block; font-style: normal; font-size: 18px; color: var(--ink3); }
+
+.phases { display: flex; flex-direction: column; gap: 10px; margin: 0 0 16px; }
+.phase { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.phase .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: 13px; }
+.phase h4 { margin: 2px 0 4px; font-size: 14.5px; }
+.phase p { margin: 0; font-size: 14px; color: var(--ink2); }
+footer { margin-top: 60px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink3); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+  <li><a href="#summary">Summary</a></li><li><a href="#goals">Goals</a></li><li><a href="#people">Who's in the household</a></li>
+  <li><a href="#experience">The experience</a></li><li><a href="#apps">Which apps a child gets</a></li><li><a href="#rules">What a parent controls in the agent</a></li><li><a href="#checks">How questions are checked</a></li>
+  <li><a href="#delivery">Getting rules to devices</a></li><li><a href="#threats">What a kid could try</a></li><li><a href="#code">Code changes</a></li>
+  <li><a href="#phases">Build order</a></li><li><a href="#testing">Testing</a></li><li><a href="#open">Open questions</a></li>
+</ol></nav>
+
+<main>
+<header class="doc">
+  <p class="eyebrow">Design document · Draft</p>
+  <h1>Notebook Family Controls</h1>
+  <p class="lede">Let a parent decide what Notebook's AI agent will talk about with each child, from the parent's own Mac or iPhone, while every family member keeps their own private notebook.</p>
+  <div class="meta"><span><b>Author</b> Ramachandran Bakthavachalam</span><span><b>Date</b> 19 October 2026</span><span><b>Status</b> Proposed</span><span><b>Applies to</b> Notebook 0.3 (Mac + iOS)</span></div>
+  <div class="proto"><p><a href="notebook-design.html" style="background:none;color:var(--accent);padding:0">Main design doc</a> · <strong>Prototypes:</strong> the grown-up app, the kids app, and the parent's Family controls with a live kid phone. All three run locally.</p><a href="app-prototype.html">Grown-up app</a><a href="kids-prototype.html">Kids app</a><a href="prototype.html">Family controls</a></div>
+</header>
+
+<h2 id="summary">Summary</h2>
+<p>Notebook is a local-first app. Each person's notes sync only through their own private iCloud database, encrypted with a key that never leaves their devices. The AI agent runs on each device using a provider key entered on that device.</p>
+<p>This design adds one new role, a <strong>managed child</strong>. A parent creates a profile for each child, chooses which topics the agent may discuss, writes extra rules in plain English, and picks the AI connection. The parent then presses <strong>Publish</strong>. The child's devices download the signed rules within about 30 seconds and enforce them. The child can't change those settings.</p>
+<p>The design rests on one point: <strong>the child's AI access arrives only inside the parent's published rules.</strong> Removing or bypassing the rules removes the AI along with them.</p>
+
+<h2 id="goals">Goals</h2>
+<h3>Goals</h3>
+<ul>
+  <li>A parent controls, per child, what kinds of questions the agent answers, how it answers them, and which tools it may use.</li>
+  <li>A parent can manage all children from either of the parent's own devices, with no server to run.</li>
+  <li>Restrictions are enforced in code and by separate checks. Instructions to the model are an extra layer on top, not the only one.</li>
+  <li>The child's experience stays friendly. A blocked question gets a kind reply the parent wrote, never an error.</li>
+  <li>A partner uses Notebook independently, with no access in either direction.</li>
+</ul>
+<h3>Non-goals</h3>
+<ul>
+  <li><strong>Reading the child's chats or notes.</strong> The parent manages settings only. The child's notebook stays in the child's iCloud, as today.</li>
+  <li><strong>Device-wide parental controls.</strong> Screen Time remains the tool for blocking other apps, websites and app deletion.</li>
+  <li><strong>A shared family notebook.</strong> That could come later and would need its own design.</li>
+</ul>
+
+<h2 id="people">Who's in the household</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Role</th><th>Their notebook</th><th>Agent settings</th><th>What the parent can see</th></tr></thead>
+  <tbody>
+    <tr><td class="n"><strong>Organizer</strong> (you)</td><td>Own iCloud, private</td><td>Set on their own devices</td><td>Not applicable</td></tr>
+    <tr><td class="n"><strong>Partner</strong></td><td>Own iCloud, private</td><td>Set on their own devices</td><td>Nothing. Shown in Family only as "Independent".</td></tr>
+    <tr><td class="n"><strong>Managed child</strong></td><td>Own iCloud, private</td><td>Locked, set by the organizer</td><td>The rules the parent published and whether each device has them. No chats or notes.</td></tr>
+  </tbody>
+</table></div>
+<p>Each child signs in with their own Apple Account (a Family Sharing child account). The partner needs nothing beyond installing the app through TestFlight or a signed Mac build. Their data already lives in their own private CloudKit database.</p>
+
+<h2 id="experience">The experience</h2>
+<h3>Parent: set up a child</h3>
+<ol>
+  <li>Open <strong>Settings → Family → Add a child</strong>. Enter a name and age. Notebook applies the starting rules for that age (Under 10, 10–13, or Teen).</li>
+  <li>Adjust topics, the answer style, your own rules, the refusal message, the AI connection, and tools and time.</li>
+  <li>Choose <strong>Add a device…</strong>. On the child's iPhone, scan the QR code from <strong>Settings → Join family</strong>; on a Mac, paste the code. Both screens show a 6-digit number to compare.</li>
+  <li>Press <strong>Publish to [name]</strong>. Each device row changes from "Updating to v8…" to "Up to date · v8".</li>
+</ol>
+<p>Edits are drafts until published, and the sidebar shows a count of unpublished changes for each child. Child profiles are saved in the parent's own notebook, so they sync between the parent's Mac and iPhone through the existing encrypted sync.</p>
+
+<h3>Child: using the agent</h3>
+<p>The rules are invisible to the child. Nothing on the child's devices lists topics, rules, versions or who set them.</p>
+<ul>
+  <li>A friendlier agent screen: rounded type, larger text, starter questions, and the child's own color.</li>
+  <li>A blocked question gets the parent's refusal message as an ordinary reply, with no label naming a rule or topic. Careful topics are simply answered at the child's level.</li>
+  <li>Agent settings show one line, "A parent set up your AI on this device", with nothing to change. The provider, model and key are never shown.</li>
+  <li>Updates arrive silently. A counter shows the questions left today.</li>
+  <li>Live typing is off. Each reply appears once it has passed the answer check.</li>
+</ul>
+
+<h2 id="apps">Which apps a child gets</h2>
+<p>The parent decides which parts of Notebook each child can open, from the <strong>Apps</strong> tab of the child's Family settings. An app that's off disappears from the child's tab bar and navigation, along with its agent tools. The child isn't shown that anything was turned off or why.</p>
+<div class="tbl"><table>
+  <thead><tr><th>App</th><th>Child sees it as</th><th>Parent options</th><th>Under 10 default</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Notes</strong></td><td>Notes</td><td>On or off · photos in notes · kid templates (I wonder, Reading log, Big idea, Checklist)</td><td>On, photos and templates on</td></tr>
+    <tr><td><strong>Journal</strong></td><td>Journal</td><td>On or off · evening reminder and its time. The journal stays private: the parent can't read it.</td><td>On, reminder at 7:30 PM</td></tr>
+    <tr><td><strong>Finance</strong></td><td>Money</td><td>On or off · <em>Savings goals</em> (allowance and goals only) or <em>Accounts &amp; spending</em> · weekly allowance amount. Investing, trading and bank connections are never available to a child.</td><td>On, savings goals, $5 a week</td></tr>
+    <tr><td><strong>AI Agent</strong></td><td>Ask</td><td>On or off, plus everything in the next section: topics, answer style, rules, photo and file uploads, AI connection, tools and time</td><td>On</td></tr>
+    <tr><td><strong>Links</strong></td><td>Links</td><td>On or off · saved links and collections (see the <a href="sharing-design.html">sharing design</a>)</td><td>Off</td></tr>
+    <tr><td><strong>Sharing</strong></td><td>Not shown</td><td>Off · Family only · Anyone on Notebook. Kids never share finance.</td><td>Family only</td></tr>
+  </tbody>
+</table></div>
+<p>The parent can also require Face ID or a passcode to open Notebook on the child's devices. This uses the existing app lock, so it keeps siblings and friends out but doesn't encrypt the disk.</p>
+<p>The settings record gains an <code>apps</code> block:</p>
+<pre><code><span class="k">"apps"</span>: {
+  "notes":   { "on": true, "photos": true, "templates": true },
+  "journal": { "on": true, "reminder": "19:30" },
+  "money":   { "on": true, "mode": "savings", "allowance": 5 },
+  "agent":   { "on": true }
+},
+<span class="k">"lock"</span>: false,
+<span class="k">"attach"</span>: { "camera": true, "library": true, "files": false }</code></pre>
+<h3>How apps are hidden</h3>
+<ul>
+  <li><strong>Mac:</strong> <code>js/core/app-manager.js</code> skips routes, title-bar switches and keyboard shortcuts (Cmd+1–4) for apps that are off. The main process also rejects store reads and writes for their keys, so a hidden app can't be reached through the developer tools.</li>
+  <li><strong>iOS:</strong> <code>NotebookViews.swift</code> builds the tab bar from the policy. The model refuses edits to hidden collections.</li>
+  <li><strong>Agent:</strong> the collections of a hidden app are removed from <code>notebook_schema</code> and every record tool. With Money on in savings mode, the agent can read goals and allowance but gets no <code>finance_summary</code>.</li>
+  <li><strong>Data:</strong> turning an app off hides it but never deletes anything. Turning it back on brings the data back.</li>
+</ul>
+
+<h2 id="rules">What a parent controls in the agent</h2>
+<h3>Topics</h3>
+<p>Each topic has three settings. <span class="s s-a">Allow</span> answers normally. <span class="s s-c">Careful</span> answers gently, at the child's age, and suggests talking to a parent. <span class="s s-b">Block</span> shows the parent's message and doesn't call the AI. Two topics are fixed and can't be changed.</p>
+<div class="tbl"><table>
+  <thead><tr><th>Topic</th><th>Under 10</th><th>10–13</th><th>Teen</th></tr></thead>
+  <tbody>
+    <tr><td>Math, history &amp; languages</td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Science &amp; nature</td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Games &amp; hobbies</td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Feelings &amp; friends</td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Health &amp; body</td><td><span class="s s-c">Careful</span></td><td><span class="s s-c">Careful</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>News &amp; politics</td><td><span class="s s-c">Careful</span></td><td><span class="s s-c">Careful</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Crushes &amp; dating</td><td><span class="s s-b">Block</span></td><td><span class="s s-c">Careful</span></td><td><span class="s s-c">Careful</span></td></tr>
+    <tr><td>Scary stuff</td><td><span class="s s-b">Block</span></td><td><span class="s s-c">Careful</span></td><td><span class="s s-a">Allow</span></td></tr>
+    <tr><td>Drugs, alcohol &amp; vaping</td><td><span class="s s-b">Block</span></td><td><span class="s s-c">Careful</span></td><td><span class="s s-c">Careful</span></td></tr>
+    <tr><td>Violence &amp; weapons</td><td><span class="s s-b">Block</span></td><td><span class="s s-b">Block</span></td><td><span class="s s-c">Careful</span></td></tr>
+    <tr><td>Gambling</td><td><span class="s s-b">Block</span></td><td><span class="s s-b">Block</span></td><td><span class="s s-b">Block</span></td></tr>
+    <tr><td>Sharing personal info</td><td><span class="s s-b">Block</span></td><td><span class="s s-b">Block</span></td><td><span class="s s-b">Block</span></td></tr>
+    <tr><td>Sexual content</td><td colspan="3"><span class="s s-b">Always blocked</span></td></tr>
+    <tr><td>Doing homework for them</td><td colspan="3"><span class="s s-h">Always explains instead</span> with a fixed reply that offers to explain the idea</td></tr>
+    <tr><td>Self-harm &amp; crisis</td><td colspan="3"><span class="s s-h">Always answered with care</span> using a fixed message that points to a trusted adult and 988 (US)</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Ask is for curiosity</h3>
+<p>Kids don't need AI for homework. Ask exists to answer the questions children wonder about and to make them want to learn more. Asked to do homework ("do my worksheet", "write my essay"), it gives a fixed, friendly reply offering to explain the idea instead. The question check catches these before the AI is called.</p>
+<ul>
+  <li><strong>Starter prompts</strong> spark curiosity across subjects: space ("How far away is the Moon?", "What's inside a black hole?"), Earth ("Why do volcanoes erupt?"), history ("Who built the pyramids?"), math ("Why is zero so important?") and nature ("How do bees make honey?"). Each is labeled with its subject.</li>
+  <li><strong>Wonder of the day</strong> shows one new question each day, and <strong>Surprise me</strong> asks a random one.</li>
+  <li><strong>Follow-up questions.</strong> Every answer ends with two suggested follow-ups as buttons, so one question leads to the next.</li>
+  <li><strong>Photos</strong> are for showing something they're curious about: a bug, a leaf, the Moon.</li>
+</ul>
+<h3>How Ask answers</h3>
+<ul>
+  <li><strong>Short and simple</strong>: one or two sentences, no follow-ups.</li>
+  <li><strong>Explain and wonder</strong> (default): explains at the child's age, then offers follow-up questions.</li>
+  <li><strong>Guess first</strong>: asks the child to guess, then explains when they tap "Tell me!".</li>
+</ul>
+
+<h3>Your own rules</h3>
+<p>Free-text rules such as "No video game cheats or hacks" or "No celebrity gossip". Each rule is checked on every question and every answer. Rules that change the style of an answer (for example "Answer in Tamil when asked") go into the AI's instructions instead of blocking anything. A rule is at most 160 characters, and a child can have up to 20.</p>
+
+<h3>Also per child</h3>
+<ul>
+  <li><strong>Refusal message</strong>: what the child sees for a blocked question, at most 200 characters.</li>
+  <li><strong>AI connection</strong>: provider, model and API key. Use one key per child with a monthly spending cap set at the provider. The model must accept images, because attached photos are checked too.</li>
+  <li><strong>Photos &amp; files in chat</strong>: take a photo (iPhone), choose from photos, attach files (iPhone and Mac). Attachments are checked with the question.</li>
+  <li><strong>Tools</strong>: web browsing, and editing notes and journal.</li>
+  <li><strong>Time</strong>: messages per day and quiet hours.</li>
+</ul>
+
+<h3>The published rules</h3>
+<pre><code>{
+  <span class="k">"schema"</span>: 1,
+  <span class="k">"child"</span>: "3f1c…",              <span class="c">// profile id, never the child's Apple Account</span>
+  <span class="k">"version"</span>: 8,                    <span class="c">// must increase; older versions are refused</span>
+  <span class="k">"issuedAt"</span>: "2026-10-19T15:42:00Z",
+  <span class="k">"parentName"</span>: "Dad",
+  <span class="k">"age"</span>: 9,
+  <span class="k">"topics"</span>: { "school": "allow", "scary": "block", "health": "careful", … },
+  <span class="k">"style"</span>: "wonder",
+  <span class="k">"rules"</span>: ["No video game cheats or hacks"],
+  <span class="k">"refusal"</span>: "That's a good one to ask Dad about. Want help with something else?",
+  <span class="k">"connection"</span>: { "provider": "anthropic", "model": "claude-haiku-5-5", "apiKey": "sk-ant-…" },
+  <span class="k">"tools"</span>: { "web": false, "editNotes": true },
+  <span class="k">"limits"</span>: { "messagesPerDay": 40, "quietHours": ["21:00", "07:00"] }
+}</code></pre>
+
+<h2 id="checks">How questions are checked</h2>
+<p>A system prompt alone is easy to talk around, so every child question passes through three layers, plus tool restrictions enforced in code.</p>
+<div class="diagram">
+  <div class="flow">
+    <div class="node"><b>Child asks</b><span>Daily limit and quiet hours checked locally first</span></div><div class="arrow">→</div>
+    <div class="node hl"><b>1 · Question check</b><span>Small model call with only the rules and the question. Returns a decision and a reason.</span></div><div class="arrow">→</div>
+    <div class="node"><b>2 · Agent run</b><span>Normal agent loop. The rules are added to its instructions and blocked tools are removed.</span></div><div class="arrow">→</div>
+    <div class="node hl"><b>3 · Answer check</b><span>Final reply checked against the same rules before it's shown</span></div><div class="arrow">→</div>
+    <div class="node"><b>Shown</b><span>Reply, or the parent's refusal message</span></div>
+  </div>
+  <div class="branch">
+    <div><b>Blocked</b> at step 1: the parent's message is shown and no agent call is made.</div>
+    <div><b>Crisis</b> at step 1: a fixed caring reply with help resources, whatever the topic settings.</div>
+    <div><b>Fails</b> at step 3: the reply is replaced with the refusal message and only the notice is stored.</div>
+  </div>
+</div>
+
+<h3>The check call</h3>
+<p>The checker is a separate request with no conversation history and no tools. It receives only the published rules, the child's age, and the text to judge, which keeps "ignore your rules" attempts in the chat from reaching it. It must return strict JSON:</p>
+<pre><code>{ <span class="k">"decision"</span>: "allow" | "careful" | "block" | "crisis",
+  <span class="k">"topic"</span>: "scary",
+  <span class="k">"rule"</span>: null | 0,                 <span class="c">// index of the parent's rule that matched</span>
+  <span class="k">"reason"</span>: "Asks for the scariest horror film" }</code></pre>
+<ul>
+  <li><strong>Fail closed.</strong> If the check can't run (network error, invalid JSON, timeout after 20 seconds), the question isn't answered. The child sees "I couldn't check that question. Try again in a moment."</li>
+  <li><strong>Higher setting wins.</strong> When a question touches several topics, the strictest setting applies, and a matching parent rule always blocks.</li>
+  <li><strong>Cost.</strong> Two short extra calls per question, typically a few hundred tokens each, on the same provider and key.</li>
+  <li><strong>Context.</strong> For short follow-ups like "why?" or "more", the checker also receives the previous question so it can judge what's meant.</li>
+</ul>
+
+<h3>Enforced in code</h3>
+<ul>
+  <li><strong>Tool filtering.</strong> Blocked tools are removed from the request, and <code>AgentCore.execute</code> rejects them if the model calls them anyway. This is the same pattern read-only mode already uses (<code>js/agent/agent-core.js:213</code>, <code>:124</code>).</li>
+  <li><strong>Hidden collections.</strong> With Finance off, finance collections and <code>finance_summary</code> are removed from the agent's tools.</li>
+  <li><strong>Web pages.</strong> Text read from web pages is covered by the answer check, because everything the child sees passes through step 3.</li>
+  <li><strong>Settings lock.</strong> The provider and key come only from the rules, and the rules themselves are never passed to the child-facing UI. The settings IPC (<code>agent-configure</code>) and the iOS <code>saveSettings</code> refuse changes while a policy is installed.</li>
+</ul>
+
+<h2 id="delivery">Getting rules to devices</h2>
+<div class="diagram">
+  <div class="arch">
+    <div class="zone"><b>Parent's devices</b>
+      <div class="box">Child profiles<small>Stored in the parent's notebook and synced with existing encryption</small></div>
+      <div class="box">Parent signing key<small>Ed25519, synced the same way</small></div></div>
+    <div class="wire"><i>→</i>Publish<br>signed + encrypted</div>
+    <div class="zone"><b>CloudKit public database</b>
+      <div class="box">FamilyPolicy record<small>One per child. Only the creator can write it. Others see only encrypted data.</small></div></div>
+    <div class="wire"><i>→</i>Fetch every<br>20–30 s</div>
+    <div class="zone"><b>Child's devices</b>
+      <div class="box">Installed policy<small>Signature checked, version must increase</small></div>
+      <div class="box">AI key<small>Stored in that device's keychain</small></div></div>
+  </div>
+</div>
+
+<h3>Why the public database</h3>
+<p>CloudKit sharing (<code>CKShare</code>) would also work, but the child has to accept each share through the system's share flow. Notebook's Mac sync runs in a helper app that Electron starts, which doesn't receive those share callbacks. A public-database record that only its creator can write, holding signed and encrypted data, gives the same guarantees with one fetch by record ID. It also needs no new entitlements beyond the existing container.</p>
+<p><em>Update, 19 October 2026:</em> the Mac app is now native SwiftUI and links NotebookCore directly, so it can receive share callbacks. The public-database design still stands, because it needs no acceptance step on the child's device.</p>
+
+<h3>Record format</h3>
+<pre><code><span class="c">// recordType FamilyPolicy, recordName = random 128-bit policy id</span>
+envelope   = AES-GCM(familyKey, policyJSON, aad: policyID ‖ version)
+signature  = Ed25519.sign(parentKey, policyID ‖ version ‖ envelope)
+fields     = { envelope: Bytes, signature: Bytes, version: Int64 }</code></pre>
+<ul>
+  <li><strong>Enrollment.</strong> The QR code or pasted code carries the policy ID, the family key, the parent's public key and a one-time secret. It reuses the existing pairing flow: ECDH, a 10-minute expiry and a 6-digit confirmation (<code>SyncSecurity.swift</code>, <code>CloudSync.beginPairing</code>).</li>
+  <li><strong>Verification on the device.</strong> The child's device checks the signature against the enrolled public key and refuses any version lower than or equal to the one installed. The policy then goes into the device's local store, so it keeps working offline.</li>
+  <li><strong>Removing a device.</strong> Rotate the family key and publish. Every device still enrolled gets the new key, which is sealed separately to each enrolled device's public key.</li>
+  <li><strong>Leaving kid mode.</strong> Only a policy the parent publishes with <code>"managed": false</code> releases the device. There is no local switch.</li>
+</ul>
+
+<h2 id="threats">What a kid could try</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Attempt</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Change agent settings</td><td>Settings are locked. The provider and key come from the rules, and both runtimes refuse configuration changes.</td></tr>
+    <tr><td>Talk the agent out of its rules ("pretend you're allowed")</td><td>The question check runs separately without the chat history, and the answer check judges the output regardless of how it was produced.</td></tr>
+    <tr><td>Delete and reinstall the app</td><td>A fresh, unmanaged install has no AI key and therefore no agent. On iOS, Screen Time can also block deleting apps.</td></tr>
+    <tr><td>Use their own API key in a reinstalled copy</td><td>Possible for a determined teen. Screen Time and the conversation are the real answers here.</td></tr>
+    <tr><td>Extract the key from a Mac</td><td>Hard (it's in safeStorage) but possible for a technical kid. That's why each child gets a separate key with a spending cap, which you can revoke at the provider.</td></tr>
+    <tr><td>Replay an older, looser policy</td><td>Refused, because the version must increase. Only the parent's account can write the record anyway.</td></tr>
+    <tr><td>Stay offline to avoid an update</td><td>The last installed rules keep applying. With no network there's no AI either.</td></tr>
+    <tr><td>Change the device clock to skip quiet hours</td><td>Possible on Mac. Fine for now. A future version could use the provider response's <code>Date</code> header.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="code">Code changes</h2>
+<div class="tbl"><table>
+  <thead><tr><th>Where</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td><code>js/agent/agent-policy.js</code> <em>(new)</em></td><td>Rules format, age presets, check-request builder and parser, instruction text, tool filter. Shared by the Mac and iPhone JavaScriptCore runtimes, like <code>agent-core.js</code>.</td></tr>
+    <tr><td><code>js/agent/agent-core.js</code></td><td><code>request()</code> and <code>execute()</code> accept a policy: extra instructions, filtered tools, rejected tool calls.</td></tr>
+    <tr><td><code>js/main/agent.js</code></td><td><code>AgentService.run</code> wraps the loop with the question and answer checks and the daily limit. <code>AgentSettings</code> reads the connection from the policy and is locked when one is installed.</td></tr>
+    <tr><td><code>ios/Notebook/AgentModel.swift</code></td><td>Same checks in <code>send()</code>. The key comes from the policy. Live text is off in kid mode.</td></tr>
+    <tr><td><code>native/Sources/NotebookCore/FamilyPolicy.swift</code> <em>(new)</em></td><td>Signing, encryption, enrollment codes, publish and fetch in the public database, version checks.</td></tr>
+    <tr><td><code>native/Sources/NotebookBridge/main.swift</code></td><td>New helper actions: <code>family-publish</code>, <code>family-fetch</code>, <code>family-enroll-begin</code>, <code>family-enroll-join</code>.</td></tr>
+    <tr><td><code>js/apps/agent/agent-app.js</code>, <code>css/apps/agent.css</code></td><td>Family settings window for the parent. Kid-mode agent screen and locked settings.</td></tr>
+    <tr><td><code>ios/Notebook/NotebookSettings.swift</code>, <code>AgentViews.swift</code></td><td>Family section for the parent and Join family for the child. Kid-mode agent screen.</td></tr>
+    <tr><td><code>js/core/app-manager.js</code>, <code>main.js</code></td><td>Hide apps that are off and reject store access to their keys.</td></tr>
+    <tr><td><code>ios/Notebook/NotebookViews.swift</code>, <code>NotebookModel.swift</code></td><td>Tab bar from the policy, kid templates, journal reminder, Money's savings view.</td></tr>
+    <tr><td>CloudKit Console</td><td>Add the <code>FamilyPolicy</code> record type with creator-only write permission. Deploy to Production before TestFlight.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="phases">Build order</h2>
+<div class="phases">
+  <div class="phase"><span class="num">1</span><div><h4>Rules and checks</h4><p><code>agent-policy.js</code>, enforcement in both runtimes, and a hidden debug option to install a policy file by hand. This alone delivers the core behavior on one device.</p></div></div>
+  <div class="phase"><span class="num">2</span><div><h4>Parent's Family editor</h4><p>Mac and iOS screens matching the prototype. Profiles saved in the parent's notebook, with drafts and a count of unpublished changes.</p></div></div>
+  <div class="phase"><span class="num">3</span><div><h4>Delivery and enrollment</h4><p>FamilyPolicy record, signing and encryption, QR and paste enrollment, fetch on the sync timer, locked kid settings, device status rows.</p></div></div>
+  <div class="phase"><span class="num">4</span><div><h4>Release</h4><p>Docs, CloudKit Production schema, TestFlight for the partner and children, Developer ID notarized Mac build.</p></div></div>
+</div>
+
+<h2 id="testing">Testing</h2>
+<ul>
+  <li><strong>Node tests</strong> (<code>npm test</code>): presets, check parsing (invalid JSON fails closed), strictest-setting logic, tool filtering and rejection, settings lock, daily limit.</li>
+  <li><strong>Native tests</strong> (<code>npm run test:native</code>): signature and encryption round trips, version rollback refused, a tampered envelope refused, enrollment-code expiry.</li>
+  <li><strong>Question set</strong>: a fixed list of about 150 child-style questions with expected decisions for each preset, run against the real checker model. It doubles as a regression suite when the model changes.</li>
+  <li><strong>On devices</strong>: a signed parent Mac and a child iPhone on separate Apple Accounts. Check publish-to-update time, offline behavior and an iCloud account change.</li>
+</ul>
+
+<h2 id="open">Open questions</h2>
+<ul>
+  <li><strong>Blocked-question summary for the parent.</strong> Out of scope for now. A weekly count of blocked questions by topic, with no question text, would help tune the rules without reading the child's chats.</li>
+  <li><strong>Asking for an exception.</strong> Should a child be able to tap "Ask Dad" on a blocked reply, sending a request without the question text?</li>
+  <li><strong>Checker model choice.</strong> The same model is the simplest option. A cheaper dedicated checker model would cut cost but adds a setting.</li>
+  <li><strong>Parent name.</strong> "Dad" is set per family. Two organizers (both parents managing) would need a second signing key on the policy.</li>
+</ul>
+
+<footer>Notebook · Family Controls design · Draft for review</footer>
+</main>
+</div>
+</body>
+</html>
