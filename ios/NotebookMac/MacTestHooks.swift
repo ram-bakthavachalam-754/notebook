@@ -69,6 +69,8 @@ import WebKit
             let view: AnyView = args[i + 1] == "account" ? AnyView(AccountEditor(finance:finance, row:FinanceRow(raw:[:]))) : AnyView(TransactionEditor(finance:finance, row:FinanceRow(raw:[:])))
             let window = NSWindow(contentViewController:NSHostingController(rootView:view)); window.title = "Sheet"; window.makeKeyAndOrderFront(nil)
         }
+        // --teleprompter: start the teleprompter on a sample script (for --snapshot).
+        if args.contains("--teleprompter") { Task { try? await Task.sleep(for:.seconds(1)); MacTeleprompter.shared.start(title:"Demo", html:"<h2>Welcome</h2><p>Thanks for joining today. In the next few minutes I'll walk through what's new in Notebook, starting with the Mac app.</p><ul><li>Notes, journal and finance in one place</li><li>An agent that works from your own data</li></ul><p>Let's get started.</p>") } }
         // --dark: draw in dark mode. --new-chat: start a new agent conversation.
         if args.contains("--dark") { NSApp.appearance = NSAppearance(named:.darkAqua) }
         if args.contains("--new-chat") { model.agent.newChat() }

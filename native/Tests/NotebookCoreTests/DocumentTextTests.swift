@@ -19,6 +19,11 @@ final class DocumentTextTests: XCTestCase {
         XCTAssertTrue((image["text"] as! String).contains("318.40"))
         XCTAssertNotNil(image["thumb"])
     }
+    func testNoteHTMLBecomesOneLinePerBlock() {
+        let text = DocumentText.plainText(html:"<h2>Opening</h2><p>Hello <b>everyone</b>,&nbsp;welcome.</p><ul><li>First point</li><li>Second&amp;third</li></ul><p>Line one<br>line two</p><img data-media=\"m1\">")
+        XCTAssertEqual(text,"Opening\nHello everyone, welcome.\nFirst point\nSecond&third\nLine one\nline two")
+        XCTAssertEqual(DocumentText.plainText(html:"<p><br></p>  "),"")
+    }
     func testTextHTMLUnsupportedAndBrokenFilesReportTheirStatus() {
         let html = DocumentText.extract(name:"page.html",type:nil,data:Data("<title>T</title><script>alert(1)</script><p>Hello &amp; welcome</p><p>Second</p>".utf8))
         XCTAssertEqual(html["text"] as? String,"T Hello & welcome\nSecond"); XCTAssertEqual(html["status"] as? String,"ready")

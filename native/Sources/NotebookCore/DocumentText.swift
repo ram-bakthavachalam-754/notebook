@@ -88,6 +88,12 @@ public enum DocumentText {
         }
         return value.replacingOccurrences(of:"&amp;",with:"&")
     }
+    /// A note's HTML as plain text, one line per paragraph, heading or list item,
+    /// for reading aloud or searching. Markup is dropped, never shown.
+    public static func plainText(html: String) -> String {
+        // Inline formatting leaves no gap: "Hello <b>all</b>," reads as "Hello all," not "Hello all ,".
+        self.html(html.replacingOccurrences(of:"</?(?:b|i|u|s|em|strong|span|a|code|mark|sub|sup|small|font)\\b[^>]*>",with:"",options:[.regularExpression,.caseInsensitive]))
+    }
     static func html(_ html: String) -> String {
         var text = html.replacingOccurrences(of:"<!--[\\s\\S]*?-->",with:" ",options:.regularExpression)
         text = text.replacingOccurrences(of:"<(script|style|svg|noscript|template|iframe|object)\\b[^>]*>[\\s\\S]*?</\\1\\s*>",with:" ",options:[.regularExpression,.caseInsensitive])

@@ -38,7 +38,7 @@ documents, and it shows every action it takes.
 
 | Section | |
 | --- | --- |
-| Notes, Journal | Rich text, tags, moods, photos, search. |
+| Notes, Journal | Rich text, tags, moods, photos, search. A teleprompter reads any note at the top of the screen, near the camera. |
 | Finance | Accounts and holdings, live prices, a page per ticker with charts, key numbers and news. Import and export as JSON. |
 | Trading (Mac) | Daily research on a watchlist that suggests stock and defined-risk option trades sized by your own budget and risk rules, then alerts you when to sell. [How it works](docs/TRADING.md). |
 | Explore (Mac) | The S&P 500, the Nasdaq-100 and tech indexes by industry, with a heat map. [Details](docs/EXPLORE.md). |

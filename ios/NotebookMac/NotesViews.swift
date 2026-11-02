@@ -172,6 +172,10 @@ struct NoteDetail: View {
                 Button { command = .numberedList } label: { Label("Numbered List", systemImage:"list.number") }.help("Numbered list").disabled(readOnly)
             }
             ToolbarItemGroup {
+                Button { MacTeleprompter.shared.start(title:item.displayTitle, html:item.content) } label: { Label("Teleprompter", systemImage:"play.rectangle") }
+                    .help("Read this note from a panel at the top of the screen, near the camera; Notebook hides until you're done (⇧⌘T)").keyboardShortcut("t", modifiers:[.command, .shift])
+            }
+            ToolbarItemGroup {
                 Button { draft.change("pinned", !item.pinned) } label: { Label(item.pinned ? "Unpin" : "Pin", systemImage:item.pinned ? "pin.slash" : "pin") }.help(item.pinned ? "Unpin" : "Pin to the top").disabled(readOnly)
                 Button(role:.destructive) { confirmDelete = true } label: { Label(shareInfo?.owner == false ? "Leave" : "Delete", systemImage:"trash") }.help(shareInfo?.owner == false ? "Remove this shared note from your notebook" : "Delete note")
             }

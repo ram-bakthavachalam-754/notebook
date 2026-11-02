@@ -17,6 +17,11 @@ final class NotebookMacDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
         MainActor.assumeIsolated { if let accept = Self.accept { accept(metadata) } else { Self.pending.append(metadata) } }
     }
+    /// A click on the Dock icon while the teleprompter is up ends it and brings
+    /// Notebook's windows back, instead of opening a second window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        !MainActor.assumeIsolated { MacTeleprompter.shared.stop() }
+    }
 }
 
 @main struct NotebookMacApp: App {

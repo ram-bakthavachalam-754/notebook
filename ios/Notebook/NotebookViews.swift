@@ -163,6 +163,7 @@ struct NotebookEditor: View {
         _draft=StateObject(wrappedValue:NotebookDraft(item:item,kind:kind,store:model.store(for:item)))
     }
     @State private var sharingSheet = false
+    @State private var teleprompter = false
     @State private var photo: PhotosPickerItem?
     @State private var editorCommand: NoteEditorCommand?
     @State private var tags: String = ""
@@ -195,10 +196,13 @@ struct NotebookEditor: View {
         .background(Color.notebookPaper)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if kind == "notes" && model.sharing.canShare("note") {
-                ToolbarItem(placement:.topBarTrailing) {
-                    Button { sharingSheet = true } label: { Image(systemName:item.share == nil ? "person.crop.circle.badge.plus" : "person.2.fill") }
-                        .accessibilityLabel("Share").disabled(item.raw["_syncHeads"] == nil)
+            if kind == "notes" {
+                ToolbarItemGroup(placement:.topBarTrailing) {
+                    Button { teleprompter = true } label: { Image(systemName:"play.rectangle") }.accessibilityLabel("Teleprompter")
+                    if model.sharing.canShare("note") {
+                        Button { sharingSheet = true } label: { Image(systemName:item.share == nil ? "person.crop.circle.badge.plus" : "person.2.fill") }
+                            .accessibilityLabel("Share").disabled(item.raw["_syncHeads"] == nil)
+                    }
                 }
             }
             ToolbarItem(placement:.principal) { Text(item.readOnly ? "View only" : draft.status).font(.caption).foregroundStyle(draft.failed ? Color.red : Color.secondary).accessibilityIdentifier("editor-save-status") }
@@ -212,6 +216,7 @@ struct NotebookEditor: View {
                 PhotosPicker(selection:$photo,matching:.images) { Image(systemName:"photo") }.accessibilityLabel("Add photo")
             } }
         }
+        .fullScreenCover(isPresented:$teleprompter) { TeleprompterScreen(script:TeleprompterScript(title:item.title, html:item.content)) }
         .sheet(isPresented:$sharingSheet) {
             ShareSheet(sharing:model.sharing, kind:"note", title:item.title.isEmpty ? "Untitled" : item.title, existing:item.share) { _ in
                 await draft.flush()
