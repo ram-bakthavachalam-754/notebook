@@ -92,7 +92,15 @@ public enum DocumentText {
     /// for reading aloud or searching. Markup is dropped, never shown.
     public static func plainText(html: String) -> String {
         // Inline formatting leaves no gap: "Hello <b>all</b>," reads as "Hello all," not "Hello all ,".
-        self.html(html.replacingOccurrences(of:"</?(?:b|i|u|s|em|strong|span|a|code|mark|sub|sup|small|font)\\b[^>]*>",with:"",options:[.regularExpression,.caseInsensitive]))
+        var text = html.replacingOccurrences(of:"</?(?:b|i|u|s|em|strong|span|a|code|mark|sub|sup|small|font)\\b[^>]*>",with:"",options:[.regularExpression,.caseInsensitive])
+        // An empty paragraph (Enter twice) is a blank line the writer meant to keep.
+        text = text.replacingOccurrences(of:"<(p|div)\\b[^>]*>(?:\\s|&nbsp;|<br\\b[^>]*>)*</\\1\\s*>",with:"\u{1}",options:[.regularExpression,.caseInsensitive])
+        // The editor wraps each new line in its own block, so an opening block tag ends the line before it.
+        text = text.replacingOccurrences(of:"<(?:p|div|li|h[1-6]|tr|section|article|blockquote|pre|td|th|ul|ol)\\b[^>]*>",with:"\n",options:[.regularExpression,.caseInsensitive])
+        return self.html(text)
+            .replacingOccurrences(of:"\n+",with:"\n",options:.regularExpression)
+            .replacingOccurrences(of:"\n*\u{1}\n*",with:"\n\n",options:.regularExpression)
+            .replacingOccurrences(of:"^\\s+|\\s+$",with:"",options:.regularExpression)
     }
     static func html(_ html: String) -> String {
         var text = html.replacingOccurrences(of:"<!--[\\s\\S]*?-->",with:" ",options:.regularExpression)

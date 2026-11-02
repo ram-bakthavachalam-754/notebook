@@ -23,6 +23,9 @@ final class DocumentTextTests: XCTestCase {
         let text = DocumentText.plainText(html:"<h2>Opening</h2><p>Hello <b>everyone</b>,&nbsp;welcome.</p><ul><li>First point</li><li>Second&amp;third</li></ul><p>Line one<br>line two</p><img data-media=\"m1\">")
         XCTAssertEqual(text,"Opening\nHello everyone, welcome.\nFirst point\nSecond&third\nLine one\nline two")
         XCTAssertEqual(DocumentText.plainText(html:"<p><br></p>  "),"")
+        // Lines typed in the editor: the first is bare, each Enter wraps the next in a div, and Enter twice leaves a blank line.
+        XCTAssertEqual(DocumentText.plainText(html:"First line<div>Second line</div><div><br></div><div>After a blank</div>"),"First line\nSecond line\n\nAfter a blank")
+        XCTAssertEqual(DocumentText.plainText(html:"<p>One</p><p></p><p>Two</p>"),"One\n\nTwo")
     }
     func testTextHTMLUnsupportedAndBrokenFilesReportTheirStatus() {
         let html = DocumentText.extract(name:"page.html",type:nil,data:Data("<title>T</title><script>alert(1)</script><p>Hello &amp; welcome</p><p>Second</p>".utf8))
