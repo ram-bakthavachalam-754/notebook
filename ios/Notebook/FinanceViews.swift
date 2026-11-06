@@ -67,7 +67,7 @@ struct NotebookFinance: View {
         _model = StateObject(wrappedValue:FinanceModel(store:notebook.store,shares:notebook.shareLibrary,authorized:{ [weak notebook] in notebook?.unlocked == true }))
     }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             List {
                 Section { Picker("Finance section",selection:$section) { Text("Investments").tag("Investments"); Text("Spending").tag("Spending") }.pickerStyle(.segmented) }
                 if let notice = model.notice { Section { Text(notice).font(.footnote).foregroundStyle(.secondary) } }
@@ -95,7 +95,11 @@ struct NotebookFinance: View {
                 }
             }
             .refreshable { await notebook.sync(); model.reload(); await model.refreshPrices() }
-            .task { while !Task.isCancelled { await model.refreshIfStale(); try? await Task.sleep(for:.seconds(60)) } }
+            .task {
+                // Prices refresh as soon as Finance comes on screen, then every minute while it stays.
+                await model.refreshOnOpen()
+                while !Task.isCancelled { await model.refreshIfStale(); try? await Task.sleep(for:.seconds(60)) }
+            }
             .sheet(item:$edit) { FinanceEditor(model:model,edit:$0) }
             .sheet(item:$spendingCategory) { FinanceCategoryEditor(model:model,row:$0) }
             .sheet(isPresented:$settings) { NotebookSettings(model:notebook) }

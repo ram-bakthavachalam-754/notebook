@@ -27,7 +27,7 @@ struct NotebookAgent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     init(notebook: NotebookModel) { self.notebook = notebook; _agent = StateObject(wrappedValue:notebook.agent); documents = notebook.documents }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView {

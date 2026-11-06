@@ -353,7 +353,7 @@ struct NotebookNews: View {
     @State private var topicsShown = false
     init(notebook: NotebookModel) { self.notebook = notebook; news = notebook.news }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             let items = news.stories(in:scope, matching:query)
             List {
                 if !news.topics.isEmpty {

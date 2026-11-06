@@ -134,3 +134,41 @@ extension NotebookUITests {
         XCTAssertTrue(editor.value.debugDescription.contains(first + last),editor.value.debugDescription)
     }
 }
+
+extension NotebookUITests {
+    /// Documents is the seventh app, so on an iPhone it lives under More. Going
+    /// back from a document must return to the Documents list, then to More.
+    func testDocumentsUnderMoreNavigatesBackToItsList() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-data"]
+        app.launchEnvironment["NOTEBOOK_TEST_DOCUMENT_COUNT"] = "12"
+        app.launch()
+        continueAfterFailure = false
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout:15), app.debugDescription)
+        XCTAssertFalse(app.tabBars.buttons["Documents"].exists)
+        app.tabBars.buttons["More"].tap()
+        XCTAssertTrue(app.buttons["Documents"].waitForExistence(timeout:5), app.debugDescription)
+        app.buttons["Documents"].tap()
+        XCTAssertTrue(app.staticTexts["Receipt 1.txt"].waitForExistence(timeout:10), app.debugDescription)
+        app.staticTexts["Receipt 1.txt"].tap()
+        XCTAssertTrue(app.textFields["Name"].waitForExistence(timeout:5), app.debugDescription)
+        XCTAssertTrue(app.navigationBars.buttons["Documents"].exists, app.navigationBars.firstMatch.debugDescription)
+        app.navigationBars.buttons["Documents"].tap()
+        XCTAssertTrue(app.staticTexts["Receipt 0.txt"].waitForExistence(timeout:5), app.debugDescription)
+        XCTAssertTrue(app.navigationBars["Documents"].exists)
+        app.navigationBars.buttons["More"].tap()
+        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.buttons["Documents"].exists)
+    }
+    /// The bar follows use: the apps chosen most come first, the rest go under More.
+    func testTabBarOrdersAppsByUse() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--reset-ui-test-data"]
+        app.launchEnvironment["NOTEBOOK_TEST_TAB_USAGE"] = "documents,finance,documents,agent,documents,finance"
+        app.launch()
+        continueAfterFailure = false
+        XCTAssertTrue(app.tabBars.buttons["More"].waitForExistence(timeout:15), app.debugDescription)
+        let labels = app.tabBars.buttons.allElementsBoundByIndex.map(\.label)
+        XCTAssertEqual(labels, ["Documents", "Finance", "Agent", "Notes", "More"], app.tabBars.firstMatch.debugDescription)
+    }
+}

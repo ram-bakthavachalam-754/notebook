@@ -527,16 +527,29 @@ struct FinanceDocument: FileDocument {
         try? jsonData(prices).write(to:cacheURL, options:.atomic)
         reload()
     }
-    func refreshPrices(quiet: Bool = false) async {
+    /// Called when Finance comes on screen: every holding priced more than
+    /// thirty seconds ago gets a fresh quote, so the figures are current
+    /// without pulling to refresh. Waits for the first read of the data.
+    func refreshOnOpen() async {
+        if !loaded { for await ready in $loaded.values where ready { break } }
+        await refreshPrices(quiet:true, olderThan:30)
+    }
+    /// Quotes every holding, or with `olderThan`, only those whose quote is
+    /// older than that many seconds.
+    func refreshPrices(quiet: Bool = false, olderThan: TimeInterval? = nil) async {
         guard !refreshing, authorized() else { return }
         refreshing = true; defer { refreshing = false }
         if robinhood?.connected == true { await refreshLive() }
         // Holdings Robinhood just priced keep that quote.
-        let live = Date().timeIntervalSince1970 * 1000 - 60 * 1000
+        let now = Date().timeIntervalSince1970 * 1000, live = now - 60 * 1000
+        let fresh = olderThan.map { now - $0 * 1000 }
         let symbols = Array(Set(holdings.filter { $0.number("totalShares") > 0 }.map { $0.text("ticker") })).filter { symbol in
             guard !symbol.isEmpty else { return false }
-            guard let entry = prices[symbol] as? [String:Any], entry["source"] as? String == "robinhood" else { return true }
-            return ((entry["updatedAt"] as? NSNumber)?.doubleValue ?? 0) < live
+            guard let entry = prices[symbol] as? [String:Any] else { return true }
+            let updated = (entry["updatedAt"] as? NSNumber)?.doubleValue ?? 0
+            if entry["source"] as? String == "robinhood", updated >= live { return false }
+            if let fresh, updated >= fresh { return false }
+            return true
         }
         let quotes = await withTaskGroup(of:(String,[String:Any]?).self) { group in
             for symbol in symbols { group.addTask { (symbol, await Self.quote(symbol)) } }

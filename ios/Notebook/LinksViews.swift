@@ -25,7 +25,7 @@ struct NotebookLinks: View {
         }
     }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             List {
                 if model.collections.count > 0 || scope != "__all__" {
                     ScrollView(.horizontal, showsIndicators:false) {

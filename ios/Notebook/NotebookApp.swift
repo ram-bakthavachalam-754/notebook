@@ -62,6 +62,13 @@ final class NotebookAppDelegate: NSObject, UIApplicationDelegate {
                     _ = try store.save(kind:"notes",record:["id":"seed-\(index)","title":"Library note \(index)","content":String(repeating:"Existing text. ",count:100),"modifiedAt":"2026-01-01T00:00:00Z"])
                 }
             }
+            if ProcessInfo.processInfo.arguments.contains("--reset-ui-test-data"), ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+               let value=ProcessInfo.processInfo.environment["NOTEBOOK_TEST_DOCUMENT_COUNT"], let count=Int(value) {
+                let rows: [[String:Any]] = (0..<min(max(count,0),200)).map { index in
+                    ["id":"doc-\(index)","name":"Receipt \(index).txt","type":"text/plain","size":40,"pages":0,"text":"Receipt \(index): coffee and a pastry, $8.50.","textStatus":"ready","textMethod":"text","textMessage":"","notes":"","tags":[String](),"source":"documents","hasPreview":false,"createdAt":"2026-01-01T00:00:00Z","modifiedAt":"2026-01-01T00:00:00Z"]
+                }
+                _ = try store.setKey("app_documents",value:["documents":rows])
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-testing"), let fixture = ProcessInfo.processInfo.environment["NOTEBOOK_FINANCE_TEST_EXPORT"] {
                 let finance = FinanceModel(store:store,authorized:{true})
                 finance.applyImport(try finance.parseImport(Data(fixture.utf8)))

@@ -16,7 +16,7 @@ struct NotebookDocuments: View {
         model.documents.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.notes.localizedCaseInsensitiveContains(query) || $0.text.localizedCaseInsensitiveContains(query) || $0.tags.joined(separator:" ").localizedCaseInsensitiveContains(query) }
     }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             List {
                 if !model.loaded {
                     HStack { Spacer(); ProgressView(); Spacer() }.padding(.top, 60).listRowBackground(Color.clear).listRowSeparator(.hidden)

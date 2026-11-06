@@ -1,31 +1,122 @@
 import SwiftUI
 import PhotosUI
 
+/// One app in the tab bar.
+struct NotebookTab: Identifiable { let id: String; let title: String; let icon: String }
+
+private struct NotebookHostedKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    /// True when an app is pushed inside the More tab's stack rather than
+    /// being a tab of its own.
+    var notebookHosted: Bool { get { self[NotebookHostedKey.self] } set { self[NotebookHostedKey.self] = newValue } }
+}
+/// Each app is its own NavigationStack in its tab. Inside the More tab the
+/// app is pushed onto More's stack instead: stacks don't nest, and the
+/// system's More tab shows what that does (the back button in a document
+/// said "More" and left the app entirely).
+struct NotebookStack<Content: View>: View {
+    @Environment(\.notebookHosted) private var hosted
+    @ViewBuilder let content: Content
+    var body: some View {
+        if hosted { content } else { NavigationStack { content } }
+    }
+}
+
 struct NotebookRoot: View {
     @ObservedObject var model: NotebookModel
     @Environment(\.scenePhase) var phase
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var settings = false
+    /// The last hundred tab choices, most recent last. The bar is ordered by
+    /// how often each app appears here, so it follows how the notebook is used.
+    @AppStorage("notebook-tab-usage") private var usageLog = ""
+    @State private var selection = ""
+    @State private var ranking: [String] = []
+    @State private var morePath: [String] = []
+    private static let testing = ProcessInfo.processInfo.arguments.contains("--ui-testing")
+    /// How many apps fit in the iPhone tab bar before the rest go under More.
+    private static let barSlots = 5
     /// A child's policy decides which apps appear; adults see everything.
     private func shows(_ app: String) -> Bool {
         guard model.agent.kidMode else { return true }
         let apps = model.agent.policy?["apps"] as? [String:[String:Any]] ?? [:]
         return apps[app]?["on"] as? Bool ?? (app == "agent")
     }
+    /// The apps this person can open, in the order they're introduced.
+    private var apps: [NotebookTab] {
+        let kid = model.agent.kidMode
+        var list: [NotebookTab] = []
+        if shows("notes") { list.append(.init(id:"notes",title:"Notes",icon:"note.text")) }
+        if shows("journal") { list.append(.init(id:"journal",title:"Journal",icon:"book.closed")) }
+        if !kid { list.append(.init(id:"finance",title:"Finance",icon:"chart.line.uptrend.xyaxis")) }
+        if !kid { list.append(.init(id:"news",title:"News",icon:"newspaper")) }
+        if shows("links") { list.append(.init(id:"links",title:"Links",icon:"link")) }
+        if !kid || shows("agent") { list.append(.init(id:"agent",title:kid ? "Ask" : "Agent",icon:"sparkles")) }
+        if shows("documents") { list.append(.init(id:"documents",title:"Documents",icon:"doc.text")) }
+        if kid && shows("money") { list.append(.init(id:"money",title:"Money",icon:"dollarsign.circle")) }
+        return list
+    }
+    /// The apps by use, most used first; apps never chosen keep their
+    /// introduction order after the rest.
+    private var ordered: [NotebookTab] {
+        let apps = apps
+        return ranking.compactMap { id in apps.first { $0.id == id } } + apps.filter { !ranking.contains($0.id) }
+    }
+    private var overflows: Bool { sizeClass != .regular && ordered.count > Self.barSlots }
+    private var bar: [NotebookTab] { overflows ? Array(ordered.prefix(Self.barSlots - 1)) : ordered }
+    private var overflow: [NotebookTab] { overflows ? Array(ordered.dropFirst(Self.barSlots - 1)) : [] }
+    private var usage: [String] {
+        if Self.testing, let seeded = ProcessInfo.processInfo.environment["NOTEBOOK_TEST_TAB_USAGE"] { return seeded.split(separator:",").map(String.init) }
+        return Self.testing ? [] : usageLog.split(separator:",").map(String.init)
+    }
+    private func rank() -> [String] {
+        var counts: [String:Int] = [:]
+        for id in usage { counts[id, default:0] += 1 }
+        return apps.enumerated().sorted { a, b in
+            let (ca, cb) = (counts[a.element.id] ?? 0, counts[b.element.id] ?? 0)
+            return ca != cb ? ca > cb : a.offset < b.offset
+        }.map(\.element.id)
+    }
+    /// Reorders the bar from the usage so far. Done while the app is out of
+    /// sight, so tabs never move under a finger, and skipped when it would
+    /// push the app in use under More.
+    private func reorder() {
+        let next = rank()
+        let visible = sizeClass == .regular || next.count <= Self.barSlots ? next : Array(next.prefix(Self.barSlots - 1))
+        guard selection.isEmpty || selection == "more" || visible.contains(selection) else { return }
+        ranking = next
+    }
+    private func used(_ id: String) {
+        guard !Self.testing else { return }
+        usageLog = (usage + [id]).suffix(100).joined(separator:",")
+    }
+    private func label(_ app: NotebookTab) -> some View { Label(app.title,systemImage:app.icon) }
+    @ViewBuilder private func content(_ id: String) -> some View {
+        switch id {
+        case "notes": NotebookList(model:model,kind:"notes",settings:$settings)
+        case "journal": NotebookList(model:model,kind:"journal",settings:$settings)
+        case "finance": NotebookFinance(notebook:model)
+        case "news": NotebookNews(notebook:model)
+        case "links": NotebookLinks(notebook:model)
+        case "agent": if model.agent.kidMode { NotebookStack { KidAsk(agent:model.agent,documents:model.documents) } } else { NotebookAgent(notebook:model) }
+        case "documents": NotebookDocuments(notebook:model)
+        case "money": NotebookStack { KidMoney(money:model.money,allowance:KidApps.allowance(model.agent.policy)) }
+        default: EmptyView()
+        }
+    }
+    private var more: some View {
+        NavigationStack(path:$morePath) {
+            List(overflow) { app in NavigationLink(value:app.id) { label(app) } }
+                .listStyle(.plain).scrollContentBackground(.hidden).background(Color.notebookPaper)
+                .navigationTitle("More")
+                .navigationDestination(for:String.self) { id in content(id).environment(\.notebookHosted,true) }
+        }
+    }
     var body: some View {
         ZStack {
-            TabView {
-                if shows("notes") { NotebookList(model:model,kind:"notes",settings:$settings).tabItem { Label("Notes",systemImage:"note.text") } }
-                if shows("journal") { NotebookList(model:model,kind:"journal",settings:$settings).tabItem { Label("Journal",systemImage:"book.closed") } }
-                if !model.agent.kidMode { NotebookFinance(notebook:model).tabItem { Label("Finance",systemImage:"chart.line.uptrend.xyaxis") } }
-                if !model.agent.kidMode { NotebookNews(notebook:model).tabItem { Label("News",systemImage:"newspaper") } }
-                if shows("links") { NotebookLinks(notebook:model).tabItem { Label("Links",systemImage:"link") } }
-                if model.agent.kidMode {
-                    if shows("agent") { NavigationStack { KidAsk(agent:model.agent,documents:model.documents) }.tabItem { Label("Ask",systemImage:"sparkles") } }
-                } else {
-                    NotebookAgent(notebook:model).tabItem { Label("Agent",systemImage:"sparkles") }
-                }
-                if shows("documents") { NotebookDocuments(notebook:model).tabItem { Label("Documents",systemImage:"doc.text") } }
-                if model.agent.kidMode && shows("money") { NavigationStack { KidMoney(money:model.money,allowance:KidApps.allowance(model.agent.policy)) }.tabItem { Label("Money",systemImage:"dollarsign.circle") } }
+            TabView(selection:$selection) {
+                ForEach(bar) { app in content(app.id).tabItem { label(app) }.tag(app.id) }
+                if overflows { more.tabItem { Label("More",systemImage:"ellipsis") }.tag("more") }
             }
             .tint(.notebookBlue)
             .sheet(isPresented:$settings) { NotebookSettings(model:model) }
@@ -39,11 +130,14 @@ struct NotebookRoot: View {
                 }.padding(30)
             }
         }
+        .onAppear { if ranking.isEmpty { reorder(); selection = bar.first?.id ?? "" } }
+        .onChange(of:selection) { previous, id in if !previous.isEmpty && id != "more" { used(id) } }
+        .onChange(of:morePath) { _, path in if let id = path.last { used(id) } }
         .task { model.startPolling(); await model.links.importInbox() }
         .onChange(of:model.unlocked) { _, unlocked in if unlocked { Task { await model.links.importInbox() } } }
         .onChange(of:phase) { _, phase in
             if phase == .active { model.startPolling(); Task { await model.links.importInbox() } }
-            else if phase == .background { settings = false; model.background() }
+            else if phase == .background { settings = false; model.background(); reorder() }
         }
         .alert("Notebook",isPresented:Binding(get:{ model.error != nil },set:{ if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .alert("Shared with you",isPresented:Binding(get:{ model.unlocked && !model.sharing.notices.isEmpty },set:{ if !$0 { model.sharing.dismissNotices() } })) { Button("OK") { model.sharing.dismissNotices() } } message: { Text(model.sharing.notices.joined(separator:"\n")) }
@@ -62,7 +156,7 @@ struct NotebookList: View {
         (kind == "notes" ? model.notes : model.journal).filter { query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.preview.localizedCaseInsensitiveContains(query) }
     }
     var body: some View {
-        NavigationStack {
+        NotebookStack {
             List {
                 if !model.loaded {
                     HStack { Spacer(); ProgressView(); Spacer() }.padding(.top, 60).listRowBackground(Color.clear).listRowSeparator(.hidden)
