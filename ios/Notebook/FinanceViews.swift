@@ -53,6 +53,7 @@ struct FinanceEdit: Identifiable {
 }
 struct NotebookFinance: View {
     @ObservedObject var notebook: NotebookModel
+    @ObservedObject private var robinhood: RobinhoodLink
     @StateObject private var model: FinanceModel
     @State private var section = "Investments"
     @State private var edit: FinanceEdit?
@@ -63,7 +64,7 @@ struct NotebookFinance: View {
     @State private var spendingCategory: FinanceRow?
     @State private var settings = false
     init(notebook: NotebookModel) {
-        self.notebook = notebook
+        self.notebook = notebook; robinhood = notebook.robinhood
         _model = StateObject(wrappedValue:FinanceModel(store:notebook.store,shares:notebook.shareLibrary,authorized:{ [weak notebook] in notebook?.unlocked == true }))
     }
     var body: some View {
@@ -96,9 +97,11 @@ struct NotebookFinance: View {
             }
             .refreshable { await notebook.sync(); model.reload(); await model.refreshPrices() }
             .task {
-                // Prices refresh as soon as Finance comes on screen, then every minute while it stays.
+                // Prices refresh as soon as Finance comes on screen, then every
+                // minute while it stays, or every 15 seconds live from Robinhood.
+                model.robinhood = robinhood
                 await model.refreshOnOpen()
-                while !Task.isCancelled { await model.refreshIfStale(); try? await Task.sleep(for:.seconds(60)) }
+                while !Task.isCancelled { await model.refreshIfStale(); try? await Task.sleep(for:.seconds(robinhood.connected ? 15 : 60)) }
             }
             .sheet(item:$edit) { FinanceEditor(model:model,edit:$0) }
             .sheet(item:$spendingCategory) { FinanceCategoryEditor(model:model,row:$0) }
@@ -134,6 +137,7 @@ struct NotebookFinance: View {
                 Text("Net worth").font(.subheadline).foregroundStyle(.secondary)
                 Text(model.fullyPriced ? model.money(model.total("netWorth")) : "—").font(.system(size:36,weight:.regular,design:.serif)).minimumScaleFactor(0.5).lineLimit(1).accessibilityIdentifier("finance-net-worth")
                 if !model.fullyPriced { Text("Refresh prices to value every holding.").font(.footnote).foregroundStyle(.secondary) }
+                else if robinhood.connected { Text("Live prices from Robinhood").font(.footnote).foregroundStyle(.secondary) }
                 if model.fullyPriced && !model.holdings.isEmpty {
                     FinancePerformance(title:"Today",amount:model.total("totalDayChange"),percent:model.total("totalDayBase") > 0 ? model.total("totalDayChangePercent") : nil)
                     FinancePerformance(title:"Unrealized gain / loss",amount:model.total("totalPL"),percent:model.total("totalCost") > 0 ? model.total("totalPLPercent") : nil)

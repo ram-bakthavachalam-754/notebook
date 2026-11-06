@@ -34,6 +34,9 @@ final class NotebookUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Your notebook, together."].waitForExistence(timeout:5))
         XCTAssertTrue(app.buttons["Scan pairing code"].exists)
         let settingsShot = XCTAttachment(screenshot:app.screenshot()); settingsShot.name = "iPhone pairing settings"; settingsShot.lifetime = .keepAlways; add(settingsShot)
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["Connect Robinhood…"].waitForExistence(timeout:5), app.debugDescription)
+        let robinhoodShot = XCTAttachment(screenshot:app.screenshot()); robinhoodShot.name = "iPhone Robinhood settings"; robinhoodShot.lifetime = .keepAlways; add(robinhoodShot)
     }
 }
 

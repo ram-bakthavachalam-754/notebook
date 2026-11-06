@@ -1,9 +1,14 @@
 import SwiftUI
 import AVFoundation
+import SafariServices
 
 struct NotebookSettings: View {
     @ObservedObject var model: NotebookModel
+    @ObservedObject private var robinhood: RobinhoodLink
     @Environment(\.dismiss) var dismiss
+    init(model: NotebookModel) { self.model = model; robinhood = model.robinhood }
+    private struct SignInPage: Identifiable { let url: URL; var id: String { url.absoluteString } }
+    @State private var signIn: SignInPage?
     @State private var code = ""
     @State private var confirmation: String?
     @State private var scanning = false
@@ -51,6 +56,19 @@ struct NotebookSettings: View {
                         .accessibilityIdentifier("settings-ai-agent")
                     } footer: { Text("The model the agent uses, and how it searches the web.") }
                 }
+                if model.unlocked && !model.agent.kidMode {
+                    Section {
+                        LabeledContent("Status") {
+                            if robinhood.connecting { HStack(spacing:6) { ProgressView().controlSize(.small); Text("Finish signing in…") } }
+                            else { Text(robinhood.connected ? "Connected, read-only" : "Not connected").foregroundStyle(robinhood.connected ? .primary : .secondary) }
+                        }
+                        if let error = robinhood.error { Text(error).font(.caption).foregroundStyle(.red) }
+                        if robinhood.connected { Button("Disconnect") { robinhood.disconnect() } }
+                        else { Button("Connect Robinhood…") { connectRobinhood() }.disabled(robinhood.connecting) }
+                    } header: { Text("Robinhood") } footer: {
+                        Text("Real-time stock and option quotes in Finance. You sign in with Robinhood here in Safari; Notebook never sees your password, can't place orders, and keeps its access in this iPhone's keychain. Without it, quotes come from Yahoo Finance.")
+                    }
+                }
                 if model.unlocked {
                     Section {
                         NavigationLink { FamilySettings(family:model.family, agent:model.agent).scrollContentBackground(.hidden).background(Color.notebookPaper) } label: { Label("Family", systemImage:"person.2") }
@@ -62,8 +80,16 @@ struct NotebookSettings: View {
             .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented:$scanning) { PairingScanner { scanned in code = scanned; scanning = false; connect() } }
+            .sheet(item:$signIn, onDismiss:{ if robinhood.connecting { robinhood.cancelSignIn() } }) { page in SafariPage(url:page.url).ignoresSafeArea() }
+            .onChange(of:robinhood.connecting) { _, connecting in if !connecting { signIn = nil } }
             .onDisappear { waiting?.cancel() }
         }
+    }
+    /// Robinhood's sign-in page opens in a Safari sheet, and its reply reaches
+    /// the loopback port Notebook listens on while it stays in front.
+    func connectRobinhood() {
+        robinhood.openURL = { url in signIn = SignInPage(url:url) }
+        Task { await robinhood.connect() }
     }
     func connect() {
         guard !busy else { return }
@@ -81,6 +107,11 @@ struct NotebookSettings: View {
             catch { pairingError = error.localizedDescription }
         }
     }
+}
+struct SafariPage: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> SFSafariViewController { SFSafariViewController(url:url) }
+    func updateUIViewController(_ controller: SFSafariViewController, context: Context) { }
 }
 struct PairingScanner: UIViewControllerRepresentable {
     var prefix = "notebook://pair/"

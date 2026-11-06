@@ -6,14 +6,24 @@ import NotebookCore
 /// Robinhood's official Trading MCP server, read-only: quotes, option chains,
 /// price history, earnings and news from your own Robinhood login. You sign
 /// in once in the browser (OAuth with PKCE; Notebook never sees your
-/// password); the tokens stay in this Mac's keychain. Order tools are never
-/// called: only the tools in `readOnly` can be.
+/// password); the tokens stay in this device's keychain, so each Mac or
+/// iPhone signs in on its own. Order tools are never called: only the tools
+/// in `readOnly` can be.
 @MainActor final class RobinhoodLink: ObservableObject {
     @Published private(set) var connected = false
     @Published private(set) var connecting = false
     @Published var error: String?
-    /// Opens the sign-in page; the Mac app sets it to the default browser.
+    /// Opens the sign-in page: the Mac app sets it to the default browser,
+    /// the iPhone app to an in-app Safari sheet (the reply comes back to a
+    /// loopback port, which only works while Notebook stays in front).
     var openURL: (URL) -> Void = { _ in }
+    /// Where the person connects, for messages.
+    #if os(macOS)
+    static let settingsPlace = "Settings → Trading"
+    #else
+    static let settingsPlace = "Settings → Robinhood"
+    #endif
+    private var receiver: LoopbackReceiver?
     static let server = URL(string:"https://agent.robinhood.com/mcp/trading")!
     static let readOnly: Set<String> = ["get_accounts", "get_portfolio", "search", "get_equity_quotes", "get_equity_historicals", "get_equity_fundamentals",
                                         "get_equity_technical_indicators", "get_earnings_results", "get_earnings_calendar", "get_equity_news", "get_equity_analyst_ratings",
@@ -38,7 +48,8 @@ import NotebookCore
         connecting = true; error = nil; defer { connecting = false }
         do {
             let receiver = try LoopbackReceiver()
-            defer { receiver.stop() }
+            self.receiver = receiver
+            defer { receiver.stop(); self.receiver = nil }
             let port = try await receiver.start()
             let redirect = "http://127.0.0.1:\(port)/callback"
             let registration = try await post(URL(string:"https://agent.robinhood.com/oauth/trading/register")!, json:["client_name":"Notebook", "redirect_uris":[redirect],
@@ -61,6 +72,8 @@ import NotebookCore
             connected = true
         } catch { self.error = error.localizedDescription }
     }
+    /// Ends a sign-in the person gave up on, such as by closing the sheet.
+    func cancelSignIn() { receiver?.cancel() }
     func disconnect() {
         try? AgentKeychain.remove(Self.keychain)
         token = nil; sessionID = nil; connected = false
@@ -74,12 +87,12 @@ import NotebookCore
     }
     /// A fresh access token, refreshing it when it's about to expire.
     private func accessToken(force: Bool = false) async throws -> String {
-        guard let token else { throw NotebookError.message("Connect Robinhood in Settings → Trading.") }
+        guard let token else { throw NotebookError.message("Connect Robinhood in \(Self.settingsPlace).") }
         if !force, token.expires.timeIntervalSinceNow > 60 { return token.access }
         guard !token.refresh.isEmpty, let granted = try? await post(URL(string:"https://api.robinhood.com/oauth2/token/")!, form:["grant_type":"refresh_token", "refresh_token":token.refresh,
                                                                                                                                   "client_id":token.clientID, "resource":Self.server.absoluteString]),
               (try? store(granted, clientID:token.clientID)) != nil, let access = self.token?.access else {
-            disconnect(); error = "Robinhood signed Notebook out. Connect again in Settings → Trading."
+            disconnect(); error = "Robinhood signed Notebook out. Connect again in \(Self.settingsPlace)."
             throw NotebookError.message(error!)
         }
         return access
@@ -416,6 +429,7 @@ private final class LoopbackReceiver: @unchecked Sendable {
         }
     }
     func stop() { listener.cancel() }
+    func cancel() { queue.async { self.finish(.failure(NotebookError.message("Sign-in was cancelled."))) } }
     private func finish(_ result: Result<[String:String], Error>) {
         guard let waiting else { if case .success(let value) = result { early = value }; return }
         self.waiting = nil
