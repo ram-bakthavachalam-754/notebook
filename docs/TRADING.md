@@ -129,10 +129,11 @@ reply caught on `127.0.0.1`, so Notebook never sees your password. The tokens
 stay in that Mac's keychain and refresh on their own.
 
 On an iPhone, Settings → Robinhood → Connect Robinhood… opens the same
-sign-in page in a Safari sheet inside Notebook (it has to stay in front for
-the reply to reach it). Each device signs in on its own; the iPhone uses its
-connection for Finance's live prices, refreshed every 15 seconds while
-Finance is open.
+sign-in page in a sheet inside Notebook. The sheet presents itself as a
+desktop browser, because Robinhood's sign-in page turns phones away, and
+hands the reply to Notebook itself. Each device signs in on its own; the
+iPhone uses its connection for Finance's live prices, refreshed every 15
+seconds while Finance is open.
 
 Notebook only reads from Robinhood. It can call only the read-only tools
 listed in `RobinhoodLink.readOnly`, never an order tool. With Robinhood

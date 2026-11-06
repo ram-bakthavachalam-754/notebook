@@ -1,6 +1,6 @@
 import SwiftUI
 import AVFoundation
-import SafariServices
+import WebKit
 
 struct NotebookSettings: View {
     @ObservedObject var model: NotebookModel
@@ -80,13 +80,20 @@ struct NotebookSettings: View {
             .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented:$scanning) { PairingScanner { scanned in code = scanned; scanning = false; connect() } }
-            .sheet(item:$signIn, onDismiss:{ if robinhood.connecting { robinhood.cancelSignIn() } }) { page in SafariPage(url:page.url).ignoresSafeArea() }
+            .sheet(item:$signIn, onDismiss:{ if robinhood.connecting { robinhood.cancelSignIn() } }) { page in
+                NavigationStack {
+                    SignInWebView(url:page.url) { robinhood.receivedReply($0) }.ignoresSafeArea(edges:.bottom)
+                        .navigationTitle("Robinhood").navigationBarTitleDisplayMode(.inline)
+                        .toolbar { ToolbarItem(placement:.cancellationAction) { Button("Cancel") { signIn = nil } } }
+                }
+            }
             .onChange(of:robinhood.connecting) { _, connecting in if !connecting { signIn = nil } }
             .onDisappear { waiting?.cancel() }
         }
     }
-    /// Robinhood's sign-in page opens in a Safari sheet, and its reply reaches
-    /// the loopback port Notebook listens on while it stays in front.
+    /// Robinhood's sign-in page opens in a sheet that presents itself as a
+    /// desktop browser, since the page turns phones away. The sheet hands the
+    /// reply to Notebook itself, before the loopback address is ever loaded.
     func connectRobinhood() {
         robinhood.openURL = { url in signIn = SignInPage(url:url) }
         Task { await robinhood.connect() }
@@ -108,10 +115,36 @@ struct NotebookSettings: View {
         }
     }
 }
-struct SafariPage: UIViewControllerRepresentable {
+/// A web page shown as a desktop browser would show it. Navigations to the
+/// sign-in reply address go to `onReply` instead of being loaded.
+struct SignInWebView: UIViewRepresentable {
     let url: URL
-    func makeUIViewController(context: Context) -> SFSafariViewController { SFSafariViewController(url:url) }
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) { }
+    /// Returns true when the URL was the reply, which closes the page's job.
+    let onReply: (URL) -> Bool
+    static let desktopAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15"
+    func makeCoordinator() -> Coordinator { Coordinator(onReply:onReply) }
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.defaultWebpagePreferences.preferredContentMode = .desktop
+        let view = WKWebView(frame:.zero, configuration:configuration)
+        view.customUserAgent = Self.desktopAgent
+        view.navigationDelegate = context.coordinator; view.uiDelegate = context.coordinator
+        view.load(URLRequest(url:url))
+        return view
+    }
+    func updateUIView(_ view: WKWebView, context: Context) { }
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        let onReply: (URL) -> Bool
+        init(onReply: @escaping (URL) -> Bool) { self.onReply = onReply }
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = action.request.url, onReply(url) { decisionHandler(.cancel) } else { decisionHandler(.allow) }
+        }
+        /// Links that want a new window open in this one.
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if action.targetFrame == nil { webView.load(action.request) }
+            return nil
+        }
+    }
 }
 struct PairingScanner: UIViewControllerRepresentable {
     var prefix = "notebook://pair/"

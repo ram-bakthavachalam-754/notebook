@@ -74,6 +74,16 @@ import NotebookCore
     }
     /// Ends a sign-in the person gave up on, such as by closing the sheet.
     func cancelSignIn() { receiver?.cancel() }
+    /// The sign-in reply, when the page showing it can hand it over itself
+    /// (the iPhone's sheet does, before the browser tries the loopback
+    /// address). True when the URL was the reply.
+    @discardableResult func receivedReply(_ url: URL) -> Bool {
+        guard let components = URLComponents(url:url, resolvingAgainstBaseURL:false), components.host == "127.0.0.1", components.path == "/callback" else { return false }
+        var query: [String:String] = [:]
+        for item in components.queryItems ?? [] { query[item.name] = item.value ?? "" }
+        receiver?.deliver(query)
+        return true
+    }
     func disconnect() {
         try? AgentKeychain.remove(Self.keychain)
         token = nil; sessionID = nil; connected = false
@@ -430,6 +440,7 @@ private final class LoopbackReceiver: @unchecked Sendable {
     }
     func stop() { listener.cancel() }
     func cancel() { queue.async { self.finish(.failure(NotebookError.message("Sign-in was cancelled."))) } }
+    func deliver(_ query: [String:String]) { queue.async { self.finish(.success(query)) } }
     private func finish(_ result: Result<[String:String], Error>) {
         guard let waiting else { if case .success(let value) = result { early = value }; return }
         self.waiting = nil
