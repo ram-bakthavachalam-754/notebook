@@ -203,7 +203,7 @@ struct FinanceHoldingRow: View {
     let row: FinanceRow
     var body: some View {
         VStack(alignment:.leading,spacing:6) {
-            FinanceNameValue(name:row.text("ticker"),detail:"\(row.number("totalShares").formatted(.number.precision(.fractionLength(0...8)))) shares · \(model.money(row.number("avgCostBasis"))) average cost",value:row.number("currentPrice") > 0 ? model.money(row.number("currentValue")) : "Unpriced")
+            FinanceNameValue(name:model.displayTicker(row.text("ticker")),detail:"\(row.number("totalShares").formatted(.number.precision(.fractionLength(0...8)))) \(model.optionMeta(row.text("ticker")) == nil ? "shares" : "contracts") · \(model.money(row.number("avgCostBasis"))) average cost",value:row.number("currentPrice") > 0 ? model.money(row.number("currentValue")) : "Unpriced")
             if row.number("currentPrice") > 0 {
                 HStack(alignment:.firstTextBaseline) {
                     Text("Gain / loss").foregroundStyle(.secondary)
@@ -268,7 +268,7 @@ struct FinanceAccount: View {
                 LabeledContent("Cash",value:model.money(account.number("cashBalance"))); Button("Edit account") { edit=FinanceEdit(field:"accounts",row:account) }
             }
             Section("Holdings") { ForEach(model.scopedHoldings(accountID)) { row in NavigationLink { FinanceHolding(model:model,ticker:row.text("ticker")) } label: { FinanceHoldingRow(model:model,row:row) } } }
-            Section("Transactions") { ForEach(model.rows("transactions").filter{$0.text("accountId")==accountID}.sorted{$0.text("date")>$1.text("date")}) { row in Button { edit=FinanceEdit(field:"transactions",row:row) } label: { FinanceNameValue(name:row.text("ticker"),detail:"\(row.text("type").capitalized) · \(row.text("date"))",value:"\(row.number("quantity").formatted(.number.precision(.fractionLength(0...8)))) × \(model.money(row.number("pricePerShare")))") }.foregroundStyle(.primary) } }
+            Section("Transactions") { ForEach(model.rows("transactions").filter{$0.text("accountId")==accountID}.sorted{$0.text("date")>$1.text("date")}) { row in Button { edit=FinanceEdit(field:"transactions",row:row) } label: { FinanceNameValue(name:model.displayTicker(row.text("ticker")),detail:"\(row.text("type").capitalized) · \(row.text("date"))",value:"\(row.number("quantity").formatted(.number.precision(.fractionLength(0...8)))) × \(model.money(row.number("pricePerShare")))") }.foregroundStyle(.primary) } }
         }.navigationTitle(account.name)
         .toolbar {
             if let sharing { Button { sharingSheet = true } label: { Image(systemName:sharing.share(kind:"account",entity:accountID) == nil ? "person.crop.circle.badge.plus" : "person.2.fill") }.accessibilityLabel("Share") }
@@ -295,14 +295,14 @@ struct FinanceHolding: View {
                 FinanceHoldingRow(model:model,row:holding)
                 LabeledContent("Cost basis",value:model.money(holding.number("costBasis")))
                 if holding.number("currentPrice") > 0 {
-                    LabeledContent("Share price",value:model.money(holding.number("currentPrice")))
+                    LabeledContent(model.optionMeta(ticker) == nil ? "Share price" : "Premium per share",value:model.money(holding.number("currentPrice")))
                     FinancePerformance(title:"Today",amount:holding.number("dayChange"),percent:holding.number("dayBase") > 0 ? holding.number("dayChangePercent") : nil)
                     FinancePerformance(title:"Unrealized gain / loss",amount:holding.number("profitLoss"),percent:holding.number("costBasis") > 0 ? holding.number("profitLossPercent") : nil)
                 }
             }
             Section("By account") { ForEach(model.rows("accounts").filter{a in model.scopedHoldings(a.id).contains{$0.text("ticker")==ticker}}) { account in NavigationLink(account.name) { FinanceAccount(model:model,accountID:account.id) } } }
             Section("Transactions") { ForEach(model.rows("transactions").filter{$0.text("ticker")==ticker}.sorted{$0.text("date")>$1.text("date")}) { row in FinanceNameValue(name:row.text("type").capitalized,detail:row.text("date"),value:"\(row.number("quantity").formatted(.number.precision(.fractionLength(0...8)))) × \(model.money(row.number("pricePerShare")))") } }
-        }.navigationTitle(ticker)
+        }.navigationTitle(model.displayTicker(ticker))
     }
 }
 struct FinanceStrategy: View {

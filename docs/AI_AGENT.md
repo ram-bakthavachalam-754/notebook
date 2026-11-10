@@ -42,7 +42,10 @@ rules. It can also search and read Documents (see below). It uses the existing h
 transaction edits reverse the old cash effect and apply the new one in one
 SQLite write. Invalid account links, missing quantities/prices, overselling,
 stale revisions, and deleting accounts/properties with dependent records are
-rejected. Attachments remain in the existing media store; the agent works with
+rejected. A call or put can be logged by its terms (`option: { underlying,
+expiration, type, strike }`) instead of its contract symbol; Notebook builds
+the symbol. Options are long only: a buy opens, a sell closes, and one contract
+is 100 shares. Attachments remain in the existing media store; the agent works with
 the textual record bodies and does not interpret photo/video contents.
 
 **Allow edits** enables requested changes. Turn it off to analyze and search
@@ -85,6 +88,11 @@ natively against Trading's own model, so the numbers match the screen:
 - `trading_ticker`: what a ticker page shows: the quote, company profile and
   key numbers, technicals and signal score, its alerts and research note, and
   headlines (untrusted data).
+- `trading_option_chain`: a stock's listed option expirations, or one
+  expiration's calls or puts with strike, bid, ask, mid, open interest,
+  implied volatility, delta and contract symbol, live from Robinhood (needs
+  Robinhood connected). The agent uses it to find the contract and a fair
+  premium when you ask it to log an option trade in Finance.
 - `trading_update` (with **Allow edits**): add or remove watchlist symbols,
   change settings (including the minimum volume and market cap research
   uses), log that you bought or sold an alert, skip or delete one. Settings

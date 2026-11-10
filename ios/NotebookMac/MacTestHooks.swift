@@ -64,9 +64,10 @@ import WebKit
         if args.contains("--test-settings") { Task { await testSettings(args, 0, model:model, finance:finance) } }
         // --snapshot <png>: after a few seconds, write the window as it looks to the file and quit.
         if let i = args.firstIndex(of:"--snapshot"), i + 1 < args.count { Task { NSApp.activate(ignoringOtherApps:true); try? await Task.sleep(for:.seconds(Double(ProcessInfo.processInfo.environment["SNAPSHOT_DELAY"] ?? "") ?? 4)); await snapshot(args[i + 1]); exit(0) } }
-        // --show-sheet transaction|account: open that editor in its own window (for --snapshot).
+        // --show-sheet transaction|option|account: open that editor in its own window (for --snapshot).
         if let i = args.firstIndex(of:"--show-sheet"), i + 1 < args.count {
-            let view: AnyView = args[i + 1] == "account" ? AnyView(AccountEditor(finance:finance, row:FinanceRow(raw:[:]))) : AnyView(TransactionEditor(finance:finance, row:FinanceRow(raw:[:])))
+            let option = FinanceRow(raw:["ticker":"AAPL261218C00250000", "quantity":2, "pricePerShare":3.2])
+            let view: AnyView = args[i + 1] == "account" ? AnyView(AccountEditor(finance:finance, row:FinanceRow(raw:[:]))) : AnyView(TransactionEditor(finance:finance, row:args[i + 1] == "option" ? option : FinanceRow(raw:[:])))
             let window = NSWindow(contentViewController:NSHostingController(rootView:view)); window.title = "Sheet"; window.makeKeyAndOrderFront(nil)
         }
         // --teleprompter: start the teleprompter on a sample script (for --snapshot).
@@ -196,6 +197,15 @@ import WebKit
         check("volume floor setting saved", await run("trading_update", ["action":"settings", "settings":["minVolume":500_000]])["success"] as? Bool == true && trading.setting("minVolume") == 500_000)
         check("ticker has quote, technicals, company and headlines", ticker["quote"] != nil && ticker["technicals"] is [String:Any] && ticker["company"] != nil && ticker["headlines"] != nil)
         print("ticker keys:", ticker.keys.sorted(), "error:", ticker["error"] ?? "none")
+        if model.robinhood.connected {
+            let dates = await run("trading_option_chain", ["underlying":"aapl"])
+            let first = (dates["expirations"] as? [String])?.first
+            check("option chain lists expirations", first != nil)
+            let chain = await run("trading_option_chain", ["underlying":"AAPL", "expiration":first ?? "", "type":"put", "near":200])
+            let contracts = chain["contracts"] as? [[String:Any]] ?? []
+            check("option chain lists 20 puts near 200 with quotes and symbols", contracts.count == 20 && contracts.allSatisfy { ($0["symbol"] as? String)?.wholeMatch(of:/AAPL\d{6}P\d{8}/) != nil } && contracts.contains { $0["mark"] != nil })
+            print("option chain sample:", contracts.prefix(2))
+        } else { print("SKIP option chain: Robinhood isn't connected") }
         check("read-only refuses changes", await run("trading_update", ["action":"skip", "id":"t-idea"], write:false)["error"] != nil)
         check("bad setting refused", await run("trading_update", ["action":"settings", "settings":["riskPercent":500]])["error"] != nil)
         check("watch adds to the Trading watchlist", await run("trading_update", ["action":"watch", "symbols":["msft"]])["success"] as? Bool == true && trading.watchlist.contains("MSFT"))

@@ -292,7 +292,41 @@ import NotebookCore
         }
         return found
     }
-    struct OptionQuote { var bid: Double, ask: Double, last: Double, openInterest: Double, iv: Double, delta: Double? }
+    struct OptionQuote {
+        var bid: Double, ask: Double, last: Double, openInterest: Double, iv: Double, delta: Double?
+        /// The middle of the bid and ask, or the mark when there's no two-sided market.
+        var mark: Double { bid > 0 && ask >= bid ? (bid + ask) / 2 : last }
+    }
+    /// One contract in a chain, for entering a trade by hand.
+    struct ListedOption: Identifiable { var id: String, symbol: String, strike: Double, quote: OptionQuote? = nil }
+    /// The expirations Robinhood lists for an underlying, today or later (YYYY-MM-DD).
+    func optionExpirations(_ ticker: String) async -> [String] {
+        guard connected, !ticker.isEmpty, let chains = try? await call("get_option_chains", ["underlying_symbol":ticker]) else { return [] }
+        let today = TradingModel.day.string(from:Date())
+        return Set(Self.objects(chains).flatMap { $0["expiration_dates"] as? [String] ?? [] }).filter { $0 >= today }.sorted()
+    }
+    /// Every active call or put for one expiration, by strike, with live quotes.
+    func optionContracts(_ ticker: String, expiration: String, type: String) async -> [ListedOption] {
+        guard connected, !ticker.isEmpty else { return [] }
+        var instruments: [[String:Any]] = [], cursor: String?
+        for _ in 0..<10 {
+            var arguments: [String:Any] = ["chain_symbol":ticker, "expiration_dates":expiration, "type":type, "state":"active"]
+            if let cursor { arguments["cursor"] = cursor }
+            guard let page = try? await call("get_option_instruments", arguments) else { break }
+            instruments += Self.objects(page).filter { $0["strike_price"] != nil && $0["id"] is String && ($0["expiration_date"] as? String ?? expiration) == expiration && ($0["type"] as? String ?? type) == type }
+            cursor = Self.objects(page).compactMap { ($0["next_cursor"] ?? $0["next"] ?? $0["cursor"]) as? String }.first { !$0.isEmpty }
+            if cursor == nil { break }
+        }
+        var seen = Set<String>(), listed: [ListedOption] = []
+        for instrument in instruments {
+            guard let id = instrument["id"] as? String, seen.insert(id).inserted, let strike = Self.number(instrument, ["strike_price"]) else { continue }
+            let symbol = Self.occ(ticker, expiration:expiration, type, strike)
+            listed.append(ListedOption(id:id, symbol:symbol, strike:strike)); optionIDCache[symbol] = id
+        }
+        UserDefaults.standard.set(optionIDCache, forKey:"notebook-robinhood-option-ids")
+        let quotes = await optionQuotes(listed.map(\.id))
+        return listed.map { var option = $0; option.quote = quotes[$0.id]; return option }.sorted { $0.strike < $1.strike }
+    }
     /// Live option quotes by Robinhood instrument id, in bulk: up to 100 a call.
     func optionQuotes(_ ids: [String]) async -> [String:OptionQuote] {
         guard connected, !ids.isEmpty else { return [:] }
@@ -337,6 +371,10 @@ import NotebookCore
         var calendar = Calendar(identifier:.gregorian); calendar.timeZone = TradingModel.newYork
         let d = calendar.dateComponents([.year, .month, .day], from:expiration)
         return ticker.replacingOccurrences(of:".", with:"") + String(format:"%02d%02d%02d", (d.year ?? 0) % 100, d.month ?? 0, d.day ?? 0) + (type == "put" ? "P" : "C") + String(format:"%08d", Int((strike * 1000).rounded()))
+    }
+    /// The same symbol from a YYYY-MM-DD expiration.
+    nonisolated static func occ(_ ticker: String, expiration: String, _ type: String, _ strike: Double) -> String {
+        ticker.uppercased().replacingOccurrences(of:".", with:"") + expiration.dropFirst(2).replacingOccurrences(of:"-", with:"") + (type == "put" ? "P" : "C") + String(format:"%08d", Int((strike * 1000).rounded()))
     }
     private static func chunks(_ items: [String], _ size: Int) -> [[String]] { stride(from:0, to:items.count, by:size).map { Array(items[$0..<min($0 + size, items.count)]) } }
     /// Every dictionary inside an answer, however it's nested.

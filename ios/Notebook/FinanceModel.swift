@@ -517,7 +517,7 @@ struct FinanceDocument: FileDocument {
         let session = TradingModel.day.string(from:Date())
         for (symbol, id) in idMap {
             guard let q = optionQuotes[id] else { continue }
-            let mark = q.bid > 0 && q.ask >= q.bid ? (q.bid + q.ask) / 2 : q.last
+            let mark = q.mark
             guard mark > 0 else { continue }
             let old = prices[symbol] as? [String:Any], oldPrice = (old?["price"] as? NSNumber)?.doubleValue
             let previous = old?["sessionDay"] as? String == session ? (old?["previousClose"] as? NSNumber)?.doubleValue : (old?["previousClose"] == nil ? oldPrice.map { $0 - ((old?["change"] as? NSNumber)?.doubleValue ?? 0) } : oldPrice)

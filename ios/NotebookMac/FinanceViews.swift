@@ -453,6 +453,8 @@ struct TransactionEditor: View {
     @State private var kind: String
     @State private var account: String
     @State private var ticker: String
+    @State private var asset: String
+    @State private var option: OptionDraft
     @State private var quantity: String
     @State private var price: String
     @State private var date: Date
@@ -463,23 +465,31 @@ struct TransactionEditor: View {
         _kind = State(initialValue:row.text("type").isEmpty ? "buy" : row.text("type"))
         _account = State(initialValue:row.text("accountId").isEmpty ? (finance.rows("accounts").first?.id ?? "") : row.text("accountId"))
         _ticker = State(initialValue:row.text("ticker"))
+        let meta = finance.optionMeta(row.text("ticker"))
+        _asset = State(initialValue:meta == nil ? "stock" : "option")
+        _option = State(initialValue:OptionDraft(meta))
         _quantity = State(initialValue:row.raw["quantity"] == nil ? "" : String(row.number("quantity")))
         _price = State(initialValue:row.raw["pricePerShare"] == nil ? "" : String(row.number("pricePerShare")))
         _date = State(initialValue:JournalDates.date(row.text("date")) ?? Date())
         _notes = State(initialValue:row.text("notes"))
     }
     var body: some View {
-        EditorSheet(title:row.id.isEmpty ? "New Transaction" : "Edit Transaction", width:460, height:470) {
+        EditorSheet(title:row.id.isEmpty ? "New Transaction" : "Edit Transaction", width:480, height:asset == "option" ? 640 : 520) {
             Section {
                 Picker("Kind", selection:$kind) { Text("Buy").tag("buy"); Text("Sell").tag("sell"); Text("Existing holding").tag("holding") }.pickerStyle(.segmented)
                 Picker("Account", selection:$account) { ForEach(finance.rows("accounts")) { Text($0.name).tag($0.id) } }
+                Picker("Asset", selection:$asset) { Text("Stock").tag("stock"); Text("Option").tag("option") }.pickerStyle(.segmented)
             } footer: {
-                Text(kind == "holding" ? "Records shares you already own. Cash isn't changed." : kind == "buy" ? "Takes the cost out of the account's cash." : "Adds the proceeds to the account's cash.")
+                Text(footer)
             }
             Section {
-                TextField("Symbol", text:$ticker, prompt:Text("VTI"))
-                TextField("Shares", text:$quantity, prompt:Text("10"))
-                TextField("Price per share", text:$price, prompt:Text("250.00"))
+                if asset == "option" {
+                    OptionContractFields(finance:finance, draft:$option, price:$price)
+                } else {
+                    TextField("Symbol", text:$ticker, prompt:Text("VTI"))
+                }
+                TextField(asset == "option" ? "Contracts" : "Shares", text:$quantity, prompt:Text(asset == "option" ? "1" : "10"))
+                TextField(asset == "option" ? "Premium per share" : "Price per share", text:$price, prompt:Text(asset == "option" ? "3.20" : "250.00"))
                 DatePicker("Date", selection:$date, displayedComponents:.date)
                 TextField("Notes", text:$notes, prompt:Text("Optional"))
             } footer: { if let problem { Text(problem).foregroundStyle(.red) } }
@@ -489,11 +499,20 @@ struct TransactionEditor: View {
             Button(row.id.isEmpty ? "Add" : "Save") { save() }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
         }
     }
+    private var footer: String {
+        let cash = kind == "holding" ? "Records \(asset == "option" ? "contracts" : "shares") you already own. Cash isn't changed." : kind == "buy" ? "Takes the cost out of the account's cash." : "Adds the proceeds to the account's cash."
+        guard asset == "option" else { return cash }
+        let each = Double(price.replacingOccurrences(of:",", with:"")) ?? 0, count = Double(quantity.replacingOccurrences(of:",", with:"")) ?? 0
+        let total = each > 0 && count > 0 ? " Here: \((each * count * 100).formatted(.currency(code:"USD")))." : ""
+        return "\(kind == "sell" ? "Sell to close" : "Buy to open") a call or put. One contract covers 100 shares, so it costs the premium × 100.\(total) \(cash)"
+    }
     private func save() {
-        let symbol = ticker.trimmingCharacters(in:.whitespaces).uppercased()
+        var symbol = ticker.trimmingCharacters(in:.whitespaces).uppercased()
+        if asset == "option" { do { symbol = try option.symbol() } catch { problem = error.localizedDescription; return } }
         guard !symbol.isEmpty else { problem = "Enter a symbol, like VTI."; return }
-        guard let shares = Double(quantity.replacingOccurrences(of:",", with:"")), shares > 0, shares.isFinite else { problem = "Enter how many shares."; return }
-        guard let each = Double(price.replacingOccurrences(of:",", with:"")), each > 0, each.isFinite else { problem = "Enter the price per share."; return }
+        let unit = asset == "option" ? "contracts" : "shares"
+        guard let shares = Double(quantity.replacingOccurrences(of:",", with:"")), shares > 0, shares.isFinite else { problem = "Enter how many \(unit)."; return }
+        guard let each = Double(price.replacingOccurrences(of:",", with:"")), each > 0, each.isFinite else { problem = asset == "option" ? "Enter the premium per share, like 3.20." : "Enter the price per share."; return }
         guard !account.isEmpty else { problem = "Choose an account."; return }
         var updated = row
         updated.raw["type"] = kind; updated.raw["accountId"] = account; updated.raw["ticker"] = symbol

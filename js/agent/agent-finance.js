@@ -3,7 +3,8 @@ globalThis.AgentFinance = {
     summary(month) {
         if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('month must be YYYY-MM.');
         PortfolioApp.loadData(); SpendingApp.loadData();
-        const holdings = PortfolioApp.computeHoldings();
+        // Options carry a readable label ("AAPL $250 Call 12/18/26") and their contract terms.
+        const holdings = PortfolioApp.computeHoldings().map(h => h.option ? { ...h, label: PortfolioApp.displayTicker(h.ticker), unit: 'contracts', multiplier: 100 } : h);
         return { summary: PortfolioApp.getSummary(holdings), holdings, unpriced: holdings.filter(h => !(h.currentPrice > 0)).map(h => h.ticker), spending: SpendingApp.summary(month), month };
     },
     transaction(row, deleting) {

@@ -146,7 +146,7 @@ struct TickerDetail: View {
                 let total = finance.total("totalValue") - finance.total("realEstateValue")
                 let weight = total > 0 ? holding.number("currentValue") / total * 100 : 0
                 HStack(spacing:6) {
-                    Text("You own \(shares(holding.number("totalShares"))) \(holding.number("totalShares") == 1 ? "share" : "shares"), worth \(money(holding.number("currentValue")))")
+                    Text("You own \(shares(holding.number("totalShares"))) \(finance.optionMeta(ticker) == nil ? (holding.number("totalShares") == 1 ? "share" : "shares") : (holding.number("totalShares") == 1 ? "contract" : "contracts")), worth \(money(holding.number("currentValue")))")
                     if holding.number("costBasis") > 0 {
                         Text("·").foregroundStyle(.tertiary)
                         Text("\(signed(holding.number("profitLoss"))) (\(abs(holding.number("profitLossPercent")).formatted(.number.precision(.fractionLength(1))))%) all time").foregroundStyle(holding.number("profitLoss") >= 0 ? .green : .red)

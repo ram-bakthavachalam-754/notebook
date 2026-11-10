@@ -149,6 +149,16 @@ test('portfolio buys, edits, deletes and options keep cash consistent; invalid s
     assert.equal(store.get('app_portfolio').accounts[0].cashBalance,1000);
     Core.execute('create_record',{...buy,fields:{...buy.fields,ticker:'AAPL261218C00250000',quantity:1,pricePerShare:2}},io,{...options,id:'option'});
     assert.equal(store.get('app_portfolio').accounts[0].cashBalance,800);
+    // A call or put by its terms: the contract symbol is built, and a close sells it back.
+    const { ticker, ...terms } = buy.fields;
+    Core.execute('create_record',{collection:buy.collection,fields:{...terms,option:{underlying:'nvda',expiration:'2026-12-18',type:'put',strike:182.5},quantity:2,pricePerShare:1.5}},io,{...options,id:'put'});
+    assert.equal(store.get('app_portfolio').transactions.find(t=>t.id==='put').ticker,'NVDA261218P00182500');
+    assert.equal(store.get('app_portfolio').transactions.find(t=>t.id==='put').option,undefined);
+    assert.equal(store.get('app_portfolio').accounts[0].cashBalance,500);
+    Core.execute('create_record',{collection:buy.collection,fields:{...terms,type:'sell',option:{underlying:'NVDA',expiration:'2026-12-18',type:'put',strike:182.5},quantity:2,pricePerShare:2}},io,{...options,id:'close'});
+    assert.equal(store.get('app_portfolio').accounts[0].cashBalance,900);
+    for (const option of [{underlying:'NVDA',expiration:'Dec 18',type:'put',strike:180},{underlying:'NVDA',expiration:'2026-12-18',type:'straddle',strike:180},{underlying:'NVDA',expiration:'2026-12-18',type:'call',strike:0}])
+        assert.throws(()=>Core.execute('create_record',{collection:buy.collection,fields:{...terms,option}},io,{...options,id:'bad'}),/option\./);
 });
 test('selling every fractional share is allowed despite floating-point sums', () => {
     const store=memoryStore(), io=tools(store);
@@ -234,10 +244,10 @@ test('Trading tools are offered only when the host has Trading, and read-only dr
     assert.ok(!names(without).some(n => n.startsWith('trading_')));
     assert.doesNotMatch(without.body.messages[0].content, /trading_overview/);
     const edits = Core.request(Core.defaults.anthropic, messages, now, true, null, null, null, true);
-    assert.deepEqual(names(edits).filter(n => n.startsWith('trading_')), ['trading_overview', 'trading_alerts', 'trading_ticker', 'trading_update']);
+    assert.deepEqual(names(edits).filter(n => n.startsWith('trading_')), ['trading_overview', 'trading_alerts', 'trading_ticker', 'trading_option_chain', 'trading_update']);
     assert.match(edits.body.system, /trading_overview/);
     const readOnly = Core.request(Core.defaults.openai, messages, now, false, null, null, null, true);
-    assert.deepEqual(names(readOnly).filter(n => n.startsWith('trading_')), ['trading_overview', 'trading_alerts', 'trading_ticker']);
+    assert.deepEqual(names(readOnly).filter(n => n.startsWith('trading_')), ['trading_overview', 'trading_alerts', 'trading_ticker', 'trading_option_chain']);
     // The host runs them; the shared engine never does.
     assert.throws(() => Core.execute('trading_overview', {}, { get:() => ({}) }, options), /Unknown/);
 });

@@ -147,8 +147,14 @@ connected, these come from Robinhood, for Trading and for Finance:
   `get_option_instruments`).
 - **Option quotes:** live bid and ask, open interest, implied volatility and
   delta (`get_option_quotes`), in bulk. Finance looks up each option
-  holding's Robinhood id once and remembers it on that Mac. Ideas save each contract's Robinhood id, so
+  holding's Robinhood id once and remembers it on that device. Ideas save each contract's Robinhood id, so
   open trades are priced live too.
+
+- **Logging option trades in Finance:** in a new transaction, choose Option.
+  With Robinhood connected, Expiration and Strike list the contracts
+  Robinhood has, with the live bid and ask, and Use $x.xx fills in the
+  mid as the premium. Without it, type the expiration and strike. The agent
+  can do the same (`trading_option_chain`).
 
 Copy Diagnostics puts sample answers from these tools on the clipboard, along
 with what Notebook read from them, including what the market scan found.

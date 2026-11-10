@@ -537,6 +537,7 @@ extension TradingModel {
         case "trading_overview": return await agentOverview()
         case "trading_alerts": return await agentAlerts(args)
         case "trading_ticker": return try await agentTicker(args)
+        case "trading_option_chain": return try await agentOptionChain(args)
         case "trading_update":
             guard canWrite else { throw NotebookError.message("This conversation is in read-only mode. Ask the user to enable edits.") }
             return try agentUpdate(args)
@@ -583,6 +584,30 @@ extension TradingModel {
         let page = Array(matches.dropFirst(offset).prefix(limit))
         await refreshOpen(page)
         return ["total":matches.count, "offset":offset, "nextOffset":offset + limit < matches.count ? offset + limit : NSNull(), "alerts":page.map(agentIdea)]
+    }
+    /// Listed expirations, or one expiration's calls or puts with live quotes, from Robinhood.
+    private func agentOptionChain(_ args: [String:Any]) async throws -> [String:Any] {
+        let underlying = (args["underlying"] as? String ?? "").trimmingCharacters(in:.whitespaces).uppercased()
+        guard underlying.wholeMatch(of:/[A-Z.]{1,6}/) != nil else { throw NotebookError.message("Give a stock ticker such as NVDA.") }
+        guard robinhood.connected else { throw NotebookError.message("Option quotes need Robinhood. Connect it in \(RobinhoodLink.settingsPlace).") }
+        let expirations = await robinhood.optionExpirations(underlying)
+        guard !expirations.isEmpty else { throw NotebookError.message("Robinhood lists no options for \(underlying).") }
+        guard let expiration = args["expiration"] as? String, !expiration.isEmpty else { return ["underlying":underlying, "expirations":expirations, "source":"robinhood"] }
+        guard expirations.contains(expiration) else { throw NotebookError.message("\(underlying) has no options expiring \(expiration). Listed: \(expirations.prefix(12).joined(separator:", "))") }
+        let type = args["type"] as? String == "put" ? "put" : "call"
+        var contracts = await robinhood.optionContracts(underlying, expiration:expiration, type:type)
+        if let near = (args["near"] as? NSNumber)?.doubleValue, near > 0 {
+            contracts = Array(contracts.sorted { abs($0.strike - near) < abs($1.strike - near) }.prefix(20)).sorted { $0.strike < $1.strike }
+        }
+        return ["underlying":underlying, "expiration":expiration, "type":type, "source":"robinhood", "pricesArePerShare":true, "contractMultiplier":100,
+                "contracts":contracts.map { c -> [String:Any] in
+                    var row: [String:Any] = ["symbol":c.symbol, "strike":c.strike]
+                    if let q = c.quote {
+                        row["bid"] = q.bid; row["ask"] = q.ask; row["mark"] = q.mark; row["openInterest"] = q.openInterest; row["impliedVolatility"] = q.iv
+                        if let delta = q.delta { row["delta"] = delta }
+                    }
+                    return row
+                }]
     }
     private func agentTicker(_ args: [String:Any]) async throws -> [String:Any] {
         let ticker = (args["ticker"] as? String ?? "").trimmingCharacters(in:.whitespaces).uppercased()

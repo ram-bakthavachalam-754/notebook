@@ -9,6 +9,8 @@ struct FinanceEditor: View {
     @State private var value = ""
     @State private var account = ""
     @State private var ticker = ""
+    @State private var asset = "stock"
+    @State private var option = OptionDraft()
     @State private var quantity = ""
     @State private var price = ""
     @State private var date = Date()
@@ -29,11 +31,18 @@ struct FinanceEditor: View {
                     Section {
                         Picker("Kind",selection:$type) { Text("Buy").tag("buy"); Text("Sell").tag("sell"); Text("Holding").tag("holding") }.pickerStyle(.segmented)
                         Picker("Account",selection:$account) { ForEach(model.rows("accounts")) { row in Text(row.name).tag(row.id) } }
-                        TextField("Ticker or option symbol",text:$ticker).textInputAutocapitalization(.characters).autocorrectionDisabled().accessibilityIdentifier("finance-ticker")
-                        TextField("Shares or contracts",text:$quantity).keyboardType(.decimalPad).accessibilityIdentifier("finance-quantity")
-                        TextField("Price per share",text:$price).keyboardType(.decimalPad).accessibilityIdentifier("finance-price")
+                        Picker("Asset",selection:$asset) { Text("Stock").tag("stock"); Text("Option").tag("option") }.pickerStyle(.segmented).accessibilityIdentifier("finance-asset")
+                    }
+                    Section {
+                        if asset == "option" {
+                            OptionContractFields(finance:model,draft:$option,price:$price)
+                        } else {
+                            TextField("Ticker",text:$ticker).textInputAutocapitalization(.characters).autocorrectionDisabled().accessibilityIdentifier("finance-ticker")
+                        }
+                        TextField(asset == "option" ? "Contracts" : "Shares",text:$quantity).keyboardType(.decimalPad).accessibilityIdentifier("finance-quantity")
+                        TextField(asset == "option" ? "Premium per share" : "Price per share",text:$price).keyboardType(.decimalPad).accessibilityIdentifier("finance-price")
                         DatePicker("Date",selection:$date,displayedComponents:.date)
-                    } footer: { Text(type == "holding" ? "Records an existing position at its average cost without changing cash." : "Buy and sell transactions update cash when an account has a cash balance. For options, enter the full OCC symbol; contracts use the 100-share multiplier.") }
+                    } footer: { Text(footer) }
                 } else {
                     Section {
                         TextField("Name",text:$name).accessibilityIdentifier("finance-name")
@@ -68,15 +77,23 @@ struct FinanceEditor: View {
             } message: { Text(edit.field == "accounts" ? "This also removes its transactions. Other accounts are kept." : "This record will be removed from Finance on your paired devices.") }
             .alert("Could not save",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})) { Button("OK") {model.error=nil} } message: { Text(model.error ?? "") }
         }
-        .interactiveDismissDisabled(!name.isEmpty || !ticker.isEmpty)
+        .interactiveDismissDisabled(!name.isEmpty || !ticker.isEmpty || !option.underlying.isEmpty)
         .onChange(of:model.accessLocked) { _,locked in if locked { dismiss() } }
+    }
+    var footer: String {
+        let cash = type == "holding" ? "Records an existing position at its average cost without changing cash." : type == "buy" ? "Takes the cost out of the account's cash." : "Adds the proceeds to the account's cash."
+        guard asset == "option" else { return cash }
+        let each = Double(price) ?? 0, count = Double(quantity) ?? 0
+        let total = each > 0 && count > 0 ? " Here: \(model.money(each * count * 100))." : ""
+        return "\(type == "sell" ? "Sell to close" : "Buy to open") a call or put. One contract covers 100 shares, so it costs the premium × 100.\(total) \(cash)"
     }
     func load() {
         let row=edit.row
         name=row.name == row.id ? "" : row.name; notes=row.text("notes")
         type=row.text("type").isEmpty ? (transaction ? "buy" : edit.field == "liabilities" ? "mortgage" : "brokerage") : row.text("type")
         account=row.text("accountId").isEmpty ? (model.rows("accounts").first?.id ?? "") : row.text("accountId")
-        ticker=row.text("ticker"); quantity=row.raw["quantity"].map{String(describing:$0)} ?? ""; price=row.raw["pricePerShare"].map{String(describing:$0)} ?? ""
+        ticker=row.text("ticker"); if let meta=model.optionMeta(ticker) { asset="option"; option=OptionDraft(meta) }
+        quantity=row.raw["quantity"].map{String(describing:$0)} ?? ""; price=row.raw["pricePerShare"].map{String(describing:$0)} ?? ""
         let key=edit.field == "accounts" ? "cashBalance" : edit.field == "properties" ? "currentValue" : "balance"
         value=row.raw[key].flatMap{$0 is NSNull ? nil : String(describing:$0)} ?? ""
         address=row.text("address"); lender=row.text("lender"); property=row.text("propertyId")
@@ -87,6 +104,7 @@ struct FinanceEditor: View {
         var row=edit.row
         row.raw["notes"]=notes
         if transaction {
+            if asset == "option" { do { ticker=try option.symbol() } catch { validation=error.localizedDescription; return } }
             guard !account.isEmpty, !ticker.trimmingCharacters(in:.whitespaces).isEmpty, let shares=Double(quantity), shares.isFinite, shares>0, let cost=Double(price), cost.isFinite, cost>=0 else {validation="Enter an account, ticker, positive quantity, and a valid price.";return}
             row.raw["accountId"]=account; row.raw["ticker"]=ticker.trimmingCharacters(in:.whitespaces).uppercased(); row.raw["type"]=type; row.raw["quantity"]=shares; row.raw["pricePerShare"]=cost
             let formatter=DateFormatter(); formatter.locale=Locale(identifier:"en_US_POSIX"); formatter.dateFormat="yyyy-MM-dd"; row.raw["date"]=formatter.string(from:date)
